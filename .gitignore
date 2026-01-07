@@ -1,0 +1,23 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below if it's a vendor project)
+# vendor/
+
+# GoLand/IntelliJ IDEA project files
+.idea/
+
+# Custom binaries (if you build them in the root)
+
+# OS specific files
+Thumbs.db
+desktop.ini
