@@ -112,36 +112,20 @@ func (client *SimClient) GetAirportFrequencies(icao string, timeout time.Duratio
 			// Cast to SIMCONNECT_RECV_EXCEPTION and print dwException
 			fmt.Printf("SimConnection Exception received! ID: %d\n", ppData.DwID)
 		case SIMCONNECT_RECV_ID_FACILITY_DATA:
-			// We will read fields by offset to avoid alignment issues
-			// ppData is the start of the message
-			basePtr := uintptr(unsafe.Pointer(ppData))
+			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
 
-			// According to MSFS SDK:
-			// Offset 0: Header (12 bytes: dwSize, dwVersion, dwID)
-			// Offset 12: UserRequestId (uint32)
-			// Offset 16: UniqueRequestId (uint32)
-			// Offset 20: ParentUniqueRequestId (uint32)
-			// Offset 24: Type (uint32)
-			// Offset 28: ItemIndex (uint32)
-			// Offset 32: ListSize (uint32)
-			// Offset 36: IsListItem (uint32/BOOL)
-			// Offset 40: DATA STARTS HERE
-
-			userReqId := *(*uint32)(unsafe.Pointer(basePtr + 12))
-			msgType := *(*uint32)(unsafe.Pointer(basePtr + 24))
-
-			if userReqId != REQUEST_ID {
+			if facData.UserRequestId != REQUEST_ID {
 				continue
 			}
 
-			if msgType != SIMCONNECT_FACILITY_DATA_FREQUENCY {
+			if facData.Type != SIMCONNECT_FACILITY_DATA_FREQUENCY {
 				continue
 			}
 
 			fmt.Println("Found Frequency Data!")
 
-			// Frequency data starts at offset 40
-			dataPtr := unsafe.Pointer(basePtr + 40)
+			// Frequency data starts at the Data field
+			dataPtr := unsafe.Pointer(&facData.Data)
 			freq := (*FACILITY_FREQUENCY_DATA)(dataPtr)
 
 			name := helpers.TrimCString(freq.NAME[:])

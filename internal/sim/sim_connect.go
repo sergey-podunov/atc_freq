@@ -10,45 +10,12 @@ import (
 
 const (
 	S_OK = 0
-
-	SIMCONNECT_RECV_ID_EXCEPTION         = 3
-	SIMCONNECT_RECV_ID_FACILITY_DATA     = 28
-	SIMCONNECT_RECV_ID_FACILITY_DATA_END = 29
-
-	SIMCONNECT_FACILITY_DATA_FREQUENCY = 3
 )
 
 const (
 	DEFINE_ID  = 0x1001
 	REQUEST_ID = 0x2001
 )
-
-type SIMCONNECT_RECV struct {
-	DwSize    uint32
-	DwVersion uint32
-	DwID      uint32
-}
-
-type SIMCONNECT_RECV_FACILITY_DATA struct {
-	DwSize    uint32
-	DwVersion uint32
-	DwID      uint32
-
-	UserRequestId         uint32
-	UniqueRequestId       uint32
-	ParentUniqueRequestId uint32
-	Type                  uint32
-	ItemIndex             uint32
-	ListSize              uint32
-	IsListItem            uint32 // Using uint32 for C++ BOOL alignment
-}
-
-type SIMCONNECT_RECV_FACILITY_DATA_END struct {
-	DwSize    uint32
-	DwVersion uint32
-	DwID      uint32
-	RequestId uint32
-}
 
 type SimConnection struct {
 	dll *windows.DLL
