@@ -11,7 +11,7 @@ import (
 const (
 	S_OK = 0
 
-	SIMCONNECT_RECV_ID_EXCEPTION         = 3 // Add this
+	SIMCONNECT_RECV_ID_EXCEPTION         = 3
 	SIMCONNECT_RECV_ID_FACILITY_DATA     = 28
 	SIMCONNECT_RECV_ID_FACILITY_DATA_END = 29
 
@@ -50,7 +50,7 @@ type SIMCONNECT_RECV_FACILITY_DATA_END struct {
 	RequestId uint32
 }
 
-type simconnectDLL struct {
+type SimConnection struct {
 	dll *windows.DLL
 
 	open                    *windows.Proc
@@ -58,12 +58,14 @@ type simconnectDLL struct {
 	addToFacilityDefinition *windows.Proc
 	requestFacilityData     *windows.Proc
 	getNextDispatch         *windows.Proc
+
+	handler uintptr
 }
 
-func loadSimConnect() (*simconnectDLL, error) {
+func NewSimConnection() (*SimConnection, error) {
 	dll, err := windows.LoadDLL("SimConnect.dll")
 	if err != nil {
-		return nil, fmt.Errorf("load SimConnect.dll: %w", err)
+		return nil, fmt.Errorf("load SimConnection.dll: %w", err)
 	}
 
 	mustProc := func(name string) (*windows.Proc, error) {
@@ -96,7 +98,7 @@ func loadSimConnect() (*simconnectDLL, error) {
 		return nil, err
 	}
 
-	return &simconnectDLL{
+	return &SimConnection{
 		dll:                     dll,
 		open:                    open,
 		close:                   closeP,
@@ -106,18 +108,70 @@ func loadSimConnect() (*simconnectDLL, error) {
 	}, nil
 }
 
-func addField(field string, sc *simconnectDLL, hSimConnect uintptr) error {
+func (connection *SimConnection) Open(name string) error {
+	namePtr, _ := helpers.CString(name)
+	r1, _, _ := connection.open.Call(
+		uintptr(unsafe.Pointer(&connection.handler)),
+		uintptr(unsafe.Pointer(namePtr)),
+		0, 0, 0, 0,
+	)
+	if int32(r1) != S_OK || connection.handler == 0 {
+		return fmt.Errorf("SimConnect_Open failed HRESULT=0x%08X", uint32(r1))
+	}
+	return nil
+}
+
+func (connection *SimConnection) addField(field string, defineID uint32) error {
 	fptr, err := helpers.CString(field)
 	if err != nil {
 		return err
 	}
-	hr, _, _ := sc.addToFacilityDefinition.Call(
-		hSimConnect,
-		DEFINE_ID,
+	handlerResult, _, _ := connection.addToFacilityDefinition.Call(
+		connection.handler,
+		uintptr(defineID),
 		uintptr(unsafe.Pointer(fptr)),
 	)
-	if int32(hr) != S_OK {
-		return fmt.Errorf("AddToFacilityDefinition(%q) failed HRESULT=0x%08X", field, uint32(hr))
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("AddToFacilityDefinition(%q) failed HRESULT=0x%08X", field, uint32(handlerResult))
 	}
 	return nil
+}
+
+func (connection *SimConnection) RequestFacilityData(icao string, region string, defineID uint32, requestID uint32) error {
+	icaoPtr, _ := helpers.CString(icao)
+	regionPtr, _ := helpers.CString(region)
+
+	handlerResult, _, _ := connection.requestFacilityData.Call(
+		connection.handler,
+		uintptr(defineID),
+		uintptr(requestID),
+		uintptr(unsafe.Pointer(icaoPtr)),
+		uintptr(unsafe.Pointer(regionPtr)),
+	)
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("RequestFacilityData failed HRESULT=0x%08X", uint32(handlerResult))
+	}
+
+	return nil
+}
+
+func (connection *SimConnection) Close() {
+	//todo connection.close.Call(connection.handler)
+}
+
+func (connection *SimConnection) GetNextDispatch() (*SIMCONNECT_RECV, bool) {
+	var ppData *SIMCONNECT_RECV
+	var cbData uint32
+
+	handlerResult, _, _ := connection.getNextDispatch.Call(
+		connection.handler,
+		uintptr(unsafe.Pointer(&ppData)),
+		uintptr(unsafe.Pointer(&cbData)),
+	)
+
+	if int32(handlerResult) != S_OK || ppData == nil {
+		return nil, false
+	}
+
+	return ppData, true
 }

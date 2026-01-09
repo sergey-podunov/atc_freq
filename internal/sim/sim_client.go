@@ -42,94 +42,65 @@ var freqTypeMap = map[int32]string{
 }
 
 type SimClient struct {
-	sc *simconnectDLL
+	simConnection *SimConnection
 }
 
 func NewSimClient() (*SimClient, error) {
-	sc, err := loadSimConnect()
+	//simConnection, err := loadSimConnect()
+	sc, err := NewSimConnection()
 	if err != nil {
 		return nil, err
 	}
-	return &SimClient{sc: sc}, nil
+	return &SimClient{simConnection: sc}, nil
 }
 
-func (c *SimClient) GetAirportFrequencies(icao string, timeout time.Duration) ([]AirportFrequency, error) {
+func (client *SimClient) GetAirportFrequencies(icao string, timeout time.Duration) ([]AirportFrequency, error) {
 	icao = strings.ToUpper(strings.TrimSpace(icao))
 	if icao == "" {
 		return nil, fmt.Errorf("icao is empty")
 	}
 
-	// HANDLE hSimConnect;
-	var hSimConnect uintptr
-
-	// HRESULT SimConnect_Open(HANDLE* phSimConnect, LPCSTR name, HWND, DWORD, HANDLE, DWORD)
-	namePtr, _ := helpers.CString("go-freq-client")
-	r1, _, _ := c.sc.open.Call(
-		uintptr(unsafe.Pointer(&hSimConnect)),
-		uintptr(unsafe.Pointer(namePtr)),
-		0, 0, 0, 0,
-	)
-
-	fmt.Printf("Open HRESULT: 0x%08X, Handle: %v\n", uint32(r1), hSimConnect)
-
-	if int32(r1) != S_OK || hSimConnect == 0 {
-		return nil, fmt.Errorf("SimConnect_Open failed HRESULT=0x%08X", uint32(r1))
+	connection := client.simConnection
+	err := connection.Open("go-freq-client")
+	if err != nil {
+		return nil, err
 	}
-	defer c.sc.close.Call(hSimConnect)
+	defer connection.Close()
 
 	// Facility definition: OPEN AIRPORT -> OPEN FREQUENCY -> TYPE/FREQUENCY/NAME -> CLOSE -> CLOSE
-	if err := addField("OPEN AIRPORT", c.sc, hSimConnect); err != nil {
+	if err := connection.addField("OPEN AIRPORT", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := addField("OPEN FREQUENCY", c.sc, hSimConnect); err != nil {
+	if err := connection.addField("OPEN FREQUENCY", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := addField("TYPE", c.sc, hSimConnect); err != nil {
+	if err := connection.addField("TYPE", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := addField("FREQUENCY", c.sc, hSimConnect); err != nil {
+	if err := connection.addField("FREQUENCY", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := addField("NAME", c.sc, hSimConnect); err != nil {
+	if err := connection.addField("NAME", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := addField("CLOSE FREQUENCY", c.sc, hSimConnect); err != nil {
+	if err := connection.addField("CLOSE FREQUENCY", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := addField("CLOSE AIRPORT", c.sc, hSimConnect); err != nil {
+	if err := connection.addField("CLOSE AIRPORT", DEFINE_ID); err != nil {
 		return nil, err
 	}
 
-	icaoPtr, _ := helpers.CString(icao)
-	regionPtr, _ := helpers.CString("")
-
-	// HRESULT SimConnect_RequestFacilityData(HANDLE, defineId, requestId, icao, region)
-	hr, _, _ := c.sc.requestFacilityData.Call(
-		hSimConnect,
-		DEFINE_ID,
-		REQUEST_ID,
-		uintptr(unsafe.Pointer(icaoPtr)),
-		uintptr(unsafe.Pointer(regionPtr)),
-	)
-	if int32(hr) != S_OK {
-		return nil, fmt.Errorf("RequestFacilityData failed HRESULT=0x%08X", uint32(hr))
+	err = connection.RequestFacilityData(icao, "", DEFINE_ID, REQUEST_ID)
+	if err != nil {
+		return nil, err
 	}
 
 	var out []AirportFrequency
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
-		// HRESULT SimConnect_GetNextDispatch(HANDLE, SIMCONNECT_RECV** ppData, DWORD* pcbData)
-		var ppData *SIMCONNECT_RECV
-		var cbData uint32
-
-		hr, _, _ := c.sc.getNextDispatch.Call(
-			hSimConnect,
-			uintptr(unsafe.Pointer(&ppData)),
-			uintptr(unsafe.Pointer(&cbData)),
-		)
-
-		if int32(hr) != S_OK || ppData == nil {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
@@ -139,7 +110,7 @@ func (c *SimClient) GetAirportFrequencies(icao string, timeout time.Duration) ([
 		switch ppData.DwID {
 		case SIMCONNECT_RECV_ID_EXCEPTION:
 			// Cast to SIMCONNECT_RECV_EXCEPTION and print dwException
-			fmt.Printf("SimConnect Exception received! ID: %d\n", ppData.DwID)
+			fmt.Printf("SimConnection Exception received! ID: %d\n", ppData.DwID)
 		case SIMCONNECT_RECV_ID_FACILITY_DATA:
 			// We will read fields by offset to avoid alignment issues
 			// ppData is the start of the message

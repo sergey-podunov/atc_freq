@@ -11,7 +11,7 @@ import (
 func main() {
 	client, err := sim.NewSimClient()
 	if err != nil {
-		fmt.Println("Failed to load SimConnect:", err)
+		fmt.Println("Failed to load SimConnection:", err)
 		return
 	}
 
