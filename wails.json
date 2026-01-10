@@ -1,0 +1,16 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "atc_freq",
+  "outputfilename": "wails_app",
+  "frontend:dir": "wails/frontend",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "build:dir": "wails/build",
+  "assetdir": "wails/frontend/dist",
+  "author": {
+    "name": "Sergei Podunov",
+    "email": "podunov.sergey@gmail.com"
+  }
+}

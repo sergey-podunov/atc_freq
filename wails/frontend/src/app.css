@@ -1,0 +1,66 @@
+#logo {
+    display: block;
+    width: 50%;
+    height: 50%;
+    margin: auto;
+    padding: 10% 0 0;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-origin: content-box;
+}
+
+.container {
+    padding: 20px;
+}
+
+.result {
+    margin: 1.5rem auto;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 5px;
+    min-height: 100px;
+    overflow-y: auto;
+}
+
+table th, table td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.input-box .btn {
+    width: 100px;
+    height: 30px;
+    line-height: 30px;
+    border-radius: 3px;
+    border: none;
+    margin: 0 0 0 20px;
+    padding: 0 8px;
+    cursor: pointer;
+}
+
+.input-box .btn:hover {
+    background-image: linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%);
+    color: #333333;
+}
+
+.input-box .input {
+    border: none;
+    border-radius: 3px;
+    outline: none;
+    height: 30px;
+    line-height: 30px;
+    padding: 0 10px;
+    background-color: rgba(240, 240, 240, 1);
+    -webkit-font-smoothing: antialiased;
+}
+
+.input-box .input:hover {
+    border: none;
+    background-color: rgba(255, 255, 255, 1);
+}
+
+.input-box .input:focus {
+    border: none;
+    background-color: rgba(255, 255, 255, 1);
+}

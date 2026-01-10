@@ -25,5 +25,14 @@ _obj/
 *.o
 *.a
 *.so
-.output.txt
+.output*.txt
+assets*.txt
 /internal/sim/defs_generated.go
+
+# Wails
+/wails/frontend/node_modules/
+/wails/frontend/dist/
+/wails/frontend/wailsjs/
+/wails/frontend/package-lock.json
+/wails/frontend/package.json.md5
+
