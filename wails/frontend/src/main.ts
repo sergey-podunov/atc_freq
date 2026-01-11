@@ -44,22 +44,79 @@ window.getFreq = function () {
     }
 };
 
+// Tab switching function
+window.switchTab = function (tabName: string) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        (tab as HTMLElement).style.display = 'none';
+    });
+
+    // Remove active class from all tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // Show selected tab content
+    const selectedTab = document.getElementById(tabName);
+    if (selectedTab) {
+        selectedTab.style.display = 'block';
+    }
+
+    // Add active class to clicked tab
+    const clickedTab = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+    if (clickedTab) {
+        clickedTab.classList.add('active');
+    }
+};
+
 document.querySelector('#app')!.innerHTML = `
-    <div class="container">
-      <div class="input-box" id="input">
-        <input class="input" id="icao" type="text" autocomplete="off" placeholder="Enter ICAO (e.g. EDDB)" />
-        <button class="btn" onclick="getFreq()">Get freq</button>
-      </div>
-      <div class="result" id="result">Results will appear here</div>
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('frequencies')">Frequencies</button>
+        <button class="tab" onclick="switchTab('weather')">Weather</button>
+    </div>
+
+    <div id="frequencies" class="tab-content">
+        <div class="container">
+          <div class="input-box" id="input">
+            <input class="input" id="icao" type="text" autocomplete="off" placeholder="Enter ICAO (e.g. EDDB)" />
+            <button class="btn" onclick="getFreq()">Get freq</button>
+          </div>
+          <div class="result" id="result">Results will appear here</div>
+        </div>
+    </div>
+
+    <div id="weather" class="tab-content" style="display: none;">
+        <div class="container">
+          <div class="input-box">
+            <input class="input" id="waypoint" type="text" autocomplete="off" placeholder="Enter waypoint" />
+            <button class="btn" onclick="getWeather()">Get</button>
+          </div>
+          <div class="result" id="weather-result">Weather will appear here</div>
+        </div>
     </div>
 `;
 
+// Get weather function (does nothing for now)
+window.getWeather = function () {
+    console.log('Get weather clicked');
+};
+
 let icaoElement = (document.getElementById("icao") as HTMLInputElement);
 icaoElement.focus();
+icaoElement.addEventListener("input", () => {
+    icaoElement.value = icaoElement.value.toUpperCase();
+});
+icaoElement.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+        window.getFreq();
+    }
+});
 let resultElement = document.getElementById("result");
 
 declare global {
     interface Window {
         getFreq: () => void;
+        getWeather: () => void;
+        switchTab: (tabName: string) => void;
     }
 }

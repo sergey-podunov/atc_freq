@@ -10,6 +10,38 @@
     background-origin: content-box;
 }
 
+.tabs {
+    display: flex;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.tab {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+
+.tab:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab.active {
+    color: #ffffff;
+    border-bottom: 2px solid #ffffff;
+}
+
+.tab-content {
+    display: block;
+}
+
 .container {
     padding: 20px;
 }
