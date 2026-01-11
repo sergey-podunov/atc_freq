@@ -22,19 +22,19 @@ generate:
 # Build the Wails application
 build: generate
 	@echo "Building Wails application..."
-	$(WAILS) build -o wails_app.exe
-	@if [ -f wails/build/bin/wails_app.exe ]; then mv wails/build/bin/wails_app.exe .; fi
+	$(WAILS) build -o freq_app.exe
+	@if [ -f wails/build/bin/freq_app.exe ]; then mv wails/build/bin/freq_app.exe .; fi
 
 # Build the CLI application
 build-cli: generate
 	@echo "Building CLI application..."
-	$(GO) build -o cli_app.exe ./cmd/cli
+	$(GO) build -o cli.exe ./cmd/cli
 
 # Clean build artifacts
 clean:
 	@echo "Cleaning up..."
-	rm -f wails_app.exe
-	rm -f cli_app.exe
+	rm -f freq_app.exe
+	rm -f cli.exe
 	rm -f internal/sim/defs_generated.go
 	rm -rf _obj
 	rm -rf internal/sim/_obj
