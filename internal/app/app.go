@@ -4,23 +4,25 @@ import (
 	"atc_freq/internal/sim"
 	"context"
 	"fmt"
-	"time"
 )
 
 // App struct
 type App struct {
-	ctx       context.Context
-	simClient *sim.SimClient
+	ctx        context.Context
+	simService *sim.Service
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	client, err := sim.NewSimClient()
+	client, err := sim.NewClient()
 	if err != nil {
-		fmt.Printf("Warning: failed to initialize SimClient: %v\n", err)
+		fmt.Printf("Warning: failed to initialize Client: %v\n", err)
+		return &App{
+			simService: nil,
+		}
 	}
 	return &App{
-		simClient: client,
+		simService: sim.NewService(client),
 	}
 }
 
@@ -32,12 +34,26 @@ func (a *App) Startup(ctx context.Context) {
 
 // GetFrequencies returns airport frequencies for the given ICAO code
 func (a *App) GetFrequencies(icao string) ([]sim.AirportFrequency, error) {
-	if a.simClient == nil {
-		var err error
-		a.simClient, err = sim.NewSimClient()
+	if a.simService == nil {
+		client, err := sim.NewClient()
 		if err != nil {
-			return nil, fmt.Errorf("sim client not initialized: %w", err)
+			return nil, fmt.Errorf("sim service not initialized: %w", err)
 		}
+		a.simService = sim.NewService(client)
 	}
-	return a.simClient.GetAirportFrequencies(icao, 10*time.Second)
+
+	return a.simService.GetFrequency(icao)
+}
+
+// GetWeather returns weather information for the given waypoints
+func (a *App) GetWeather(waypoints []string) (map[string]string, error) {
+	if a.simService == nil {
+		client, err := sim.NewClient()
+		if err != nil {
+			return nil, fmt.Errorf("sim service not initialized: %w", err)
+		}
+		a.simService = sim.NewService(client)
+	}
+
+	return a.simService.GetWeather(waypoints)
 }

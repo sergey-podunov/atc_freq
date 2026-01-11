@@ -41,20 +41,20 @@ var freqTypeMap = map[int32]string{
 	15: "GCO",
 }
 
-type SimClient struct {
-	simConnection *SimConnection
+type Client struct {
+	simConnection *Connection
 }
 
-func NewSimClient() (*SimClient, error) {
+func NewClient() (*Client, error) {
 	//simConnection, err := loadSimConnect()
-	sc, err := NewSimConnection()
+	sc, err := NewConnection()
 	if err != nil {
 		return nil, err
 	}
-	return &SimClient{simConnection: sc}, nil
+	return &Client{simConnection: sc}, nil
 }
 
-func (client *SimClient) GetAirportFrequencies(icao string, timeout time.Duration) ([]AirportFrequency, error) {
+func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) ([]AirportFrequency, error) {
 	icao = strings.ToUpper(strings.TrimSpace(icao))
 	if icao == "" {
 		return nil, fmt.Errorf("icao is empty")
@@ -110,7 +110,7 @@ func (client *SimClient) GetAirportFrequencies(icao string, timeout time.Duratio
 		switch ppData.DwID {
 		case SIMCONNECT_RECV_ID_EXCEPTION:
 			// Cast to SIMCONNECT_RECV_EXCEPTION and print dwException
-			fmt.Printf("SimConnection Exception received! ID: %d\n", ppData.DwID)
+			fmt.Printf("Connection Exception received! ID: %d\n", ppData.DwID)
 		case SIMCONNECT_RECV_ID_FACILITY_DATA:
 			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
 

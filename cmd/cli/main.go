@@ -1,4 +1,5 @@
 //go:build windows
+
 package main
 
 import (
@@ -6,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/urfave/cli/v2"
 )
@@ -17,17 +17,17 @@ func main() {
 		Usage: "Get airport frequencies and weather information from MSFS",
 		Commands: []*cli.Command{
 			{
-				Name:      "freq",
-				Usage:     "Get all frequencies for an airfield",
-				ArgsUsage: "<ICAO>",
-				Action:    freqCommand,
+				Name:        "freq",
+				Usage:       "Get all frequencies for an airfield",
+				ArgsUsage:   "<ICAO>",
+				Action:      freqCommand,
 				Description: "Retrieves and displays all available frequencies for the specified airport.\n\n   Example:\n      atc_freq freq EDDB",
 			},
 			{
-				Name:      "weather",
-				Usage:     "Get weather at waypoints",
-				ArgsUsage: "<waypoint1,waypoint2,...>",
-				Action:    weatherCommand,
+				Name:        "weather",
+				Usage:       "Get weather at waypoints",
+				ArgsUsage:   "<waypoint1,waypoint2,...>",
+				Action:      weatherCommand,
 				Description: "Retrieves weather information for a comma-separated list of waypoints.\n\n   Example:\n      atc_freq weather EDDB,UUMI,KJFK",
 			},
 		},
@@ -46,18 +46,20 @@ func freqCommand(ctx *cli.Context) error {
 
 	icao := ctx.Args().Get(0)
 
-	client, err := sim.NewSimClient()
+	client, err := sim.NewClient()
 	if err != nil {
-		return fmt.Errorf("failed to load SimConnection: %w", err)
+		return fmt.Errorf("failed to load Connection: %w", err)
 	}
 
-	freqs, err := client.GetAirportFrequencies(icao, 10*time.Second)
+	service := sim.NewService(client)
+
+	freqs, err := service.GetFrequency(icao)
 	if err != nil {
-		return fmt.Errorf("failed to get frequencies: %w", err)
+		return err
 	}
 
 	if len(freqs) == 0 {
-		fmt.Printf("No frequencies found for %s\n", icao)
+		fmt.Printf("No frequencies found for %s\n", strings.ToUpper(icao))
 		return nil
 	}
 
@@ -77,24 +79,21 @@ func weatherCommand(ctx *cli.Context) error {
 	waypointsStr := ctx.Args().Get(0)
 	waypoints := strings.Split(waypointsStr, ",")
 
-	// Trim whitespace from each waypoint
-	for i := range waypoints {
-		waypoints[i] = strings.TrimSpace(waypoints[i])
+	client, err := sim.NewClient()
+	if err != nil {
+		return fmt.Errorf("failed to load Connection: %w", err)
 	}
 
-	if len(waypoints) == 0 {
-		return fmt.Errorf("no waypoints provided")
+	service := sim.NewService(client)
+
+	weatherData, err := service.GetWeather(waypoints)
+	if err != nil {
+		return err
 	}
 
-	fmt.Println("Weather command - to be implemented")
-	fmt.Printf("Requested waypoints: %v\n", waypoints)
-
-	// TODO: Implement weather retrieval logic
-	// For now, just show what waypoints were requested
-	for _, wp := range waypoints {
-		if wp != "" {
-			fmt.Printf("  - %s: (weather data not yet implemented)\n", strings.ToUpper(wp))
-		}
+	fmt.Println("Weather information:")
+	for wp, data := range weatherData {
+		fmt.Printf("  %s: %s\n", wp, data)
 	}
 
 	return nil
