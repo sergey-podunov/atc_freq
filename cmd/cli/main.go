@@ -3,7 +3,8 @@
 package main
 
 import (
-	"atc_freq/internal/sim"
+	"atc_freq/internal/app"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -12,7 +13,10 @@ import (
 )
 
 func main() {
-	app := &cli.App{
+	coreApp := app.NewApp()
+	coreApp.Startup(context.Background())
+
+	cliApp := &cli.App{
 		Name:  "atc_freq",
 		Usage: "Get airport frequencies and weather information from MSFS",
 		Commands: []*cli.Command{
@@ -20,40 +24,39 @@ func main() {
 				Name:        "freq",
 				Usage:       "Get all frequencies for an airfield",
 				ArgsUsage:   "<ICAO>",
-				Action:      freqCommand,
+				Action:      freq(coreApp),
 				Description: "Retrieves and displays all available frequencies for the specified airport.\n\n   Example:\n      atc_freq freq EDDB",
 			},
 			{
 				Name:        "weather",
 				Usage:       "Get weather at waypoints",
 				ArgsUsage:   "<waypoint1,waypoint2,...>",
-				Action:      weatherCommand,
+				Action:      weather(coreApp),
 				Description: "Retrieves weather information for a comma-separated list of waypoints.\n\n   Example:\n      atc_freq weather EDDB,UUMI,KJFK",
 			},
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
+	if err := cliApp.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func freqCommand(ctx *cli.Context) error {
-	if ctx.NArg() != 1 {
+func freq(coreApp *app.App) cli.ActionFunc {
+	return func(cliContext *cli.Context) error {
+		return freqCommand(cliContext, coreApp)
+	}
+}
+
+func freqCommand(cliContext *cli.Context, app *app.App) error {
+	if cliContext.NArg() != 1 {
 		return fmt.Errorf("requires exactly one ICAO code argument")
 	}
 
-	icao := ctx.Args().Get(0)
+	icao := cliContext.Args().Get(0)
 
-	client, err := sim.NewClient()
-	if err != nil {
-		return fmt.Errorf("failed to load Connection: %w", err)
-	}
-
-	service := sim.NewService(client)
-
-	freqs, err := service.GetFrequency(icao)
+	freqs, err := app.GetFrequencies(icao)
 	if err != nil {
 		return err
 	}
@@ -71,7 +74,13 @@ func freqCommand(ctx *cli.Context) error {
 	return nil
 }
 
-func weatherCommand(ctx *cli.Context) error {
+func weather(coreApp *app.App) cli.ActionFunc {
+	return func(cliContext *cli.Context) error {
+		return weatherCommand(cliContext, coreApp)
+	}
+}
+
+func weatherCommand(ctx *cli.Context, coreApp *app.App) error {
 	if ctx.NArg() != 1 {
 		return fmt.Errorf("requires exactly one argument (comma-separated waypoints)")
 	}
@@ -79,14 +88,7 @@ func weatherCommand(ctx *cli.Context) error {
 	waypointsStr := ctx.Args().Get(0)
 	waypoints := strings.Split(waypointsStr, ",")
 
-	client, err := sim.NewClient()
-	if err != nil {
-		return fmt.Errorf("failed to load Connection: %w", err)
-	}
-
-	service := sim.NewService(client)
-
-	weatherData, err := service.GetWeather(waypoints)
+	weatherData, err := coreApp.GetWeather(waypoints)
 	if err != nil {
 		return err
 	}
