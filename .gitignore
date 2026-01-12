@@ -36,3 +36,6 @@ assets*.txt
 /wails/frontend/package-lock.json
 /wails/frontend/package.json.md5
 
+# Claude Code temp files
+tmpclaude*
+

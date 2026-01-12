@@ -9,9 +9,9 @@ export CGO_CFLAGS = -x c++ -I$(CURDIR)
 GO = go
 WAILS = wails
 
-.PHONY: all generate build build-cli clean
+.PHONY: all generate test build build-cli clean
 
-all: generate build build-cli
+all: generate test build build-cli
 
 # Run godefs to update defs_generated.go
 # Running from root so -I. points to SimConnect.h in the root
@@ -19,14 +19,21 @@ generate:
 	@echo "Generating definitions..."
 	$(GO) tool cgo -godefs internal/sim/defs.go > internal/sim/defs_generated.go
 
+# Compile and run tests
+test: generate
+	@echo "Compiling..."
+	$(GO) build ./internal/...
+	@echo "Running tests..."
+	$(GO) test -v ./internal/...
+
 # Build the Wails application
-build: generate
+build: test
 	@echo "Building Wails application..."
 	$(WAILS) build -o freq_app.exe
 	@if [ -f wails/build/bin/freq_app.exe ]; then mv wails/build/bin/freq_app.exe .; fi
 
 # Build the CLI application
-build-cli: generate
+build-cli: test
 	@echo "Building CLI application..."
 	$(GO) build -o cli.exe ./cmd/cli
 

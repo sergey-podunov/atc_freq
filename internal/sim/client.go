@@ -42,7 +42,7 @@ var freqTypeMap = map[int32]string{
 }
 
 type Client struct {
-	simConnection *Connection
+	simConnection ConnectionInterface
 }
 
 func NewClient() (*Client, error) {
@@ -52,6 +52,11 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 	return &Client{simConnection: sc}, nil
+}
+
+// NewClientWithConnection creates a Client with a custom connection (for testing)
+func NewClientWithConnection(conn ConnectionInterface) *Client {
+	return &Client{simConnection: conn}
 }
 
 func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) ([]AirportFrequency, error) {
