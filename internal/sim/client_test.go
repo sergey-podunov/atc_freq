@@ -95,7 +95,7 @@ func TestClient_GetAirportFrequencies(t *testing.T) {
 			mockConn := new(sim.MockConnection)
 			tt.mockSetup(mockConn)
 
-			client := sim.NewClientWithConnection(mockConn)
+			client := sim.NewClient(mockConn)
 
 			freqs, err := client.GetAirportFrequencies(tt.icao, tt.timeout)
 

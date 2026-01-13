@@ -45,17 +45,7 @@ type Client struct {
 	simConnection ConnectionInterface
 }
 
-func NewClient() (*Client, error) {
-	//simConnection, err := loadSimConnect()
-	sc, err := NewConnection()
-	if err != nil {
-		return nil, err
-	}
-	return &Client{simConnection: sc}, nil
-}
-
-// NewClientWithConnection creates a Client with a custom connection (for testing)
-func NewClientWithConnection(conn ConnectionInterface) *Client {
+func NewClient(conn ConnectionInterface) *Client {
 	return &Client{simConnection: conn}
 }
 

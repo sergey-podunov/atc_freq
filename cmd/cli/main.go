@@ -4,6 +4,7 @@ package main
 
 import (
 	"atc_freq/internal/app"
+	"atc_freq/internal/sim"
 	"context"
 	"fmt"
 	"os"
@@ -13,7 +14,13 @@ import (
 )
 
 func main() {
-	coreApp := app.NewApp()
+	connection, err := sim.NewConnection()
+	if err != nil {
+		fmt.Printf("Can't create application: %v\n", err)
+		os.Exit(1)
+	}
+
+	coreApp := app.NewApp(connection)
 	coreApp.Startup(context.Background())
 
 	cliApp := &cli.App{
@@ -38,7 +45,7 @@ func main() {
 	}
 
 	if err := cliApp.Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
 }
