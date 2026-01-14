@@ -40,9 +40,9 @@ build-cli: test
 # Clean build artifacts
 clean:
 	@echo "Cleaning up..."
-	rm -f freq_app.exe
-	rm -f cli.exe
-	rm -f internal/sim/defs_generated.go
-	rm -rf _obj
-	rm -rf internal/sim/_obj
-	rm -rf wails/frontend/wailsjs
+	-rm -f freq_app.exe
+	-rm -f cli.exe
+	-rm -f internal/sim/defs_generated.go
+	-rm -rf _obj
+	-rm -rf internal/sim/_obj
+	-rm -rf wails/frontend/wailsjs

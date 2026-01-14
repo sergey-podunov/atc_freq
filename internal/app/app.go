@@ -30,6 +30,6 @@ func (a *App) GetFrequencies(icao string) ([]sim.AirportFrequency, error) {
 }
 
 // GetWeather returns weather information for the given waypoints
-func (a *App) GetWeather(waypoints []string) (map[string]string, error) {
+func (a *App) GetWeather(waypoints []string) (map[string]*sim.Weather, error) {
 	return a.simService.GetWeather(waypoints)
 }

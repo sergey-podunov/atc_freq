@@ -27,6 +27,11 @@ func (m *MockConnection) RequestFacilityData(icao string, region string, defineI
 	return args.Error(0)
 }
 
+func (m *MockConnection) RequestWeatherObservation(icao string, requestID uint32) error {
+	args := m.Called(icao, requestID)
+	return args.Error(0)
+}
+
 func (m *MockConnection) GetNextDispatch() (*SIMCONNECT_RECV, bool) {
 	args := m.Called()
 	if args.Get(0) == nil {

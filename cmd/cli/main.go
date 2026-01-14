@@ -99,8 +99,18 @@ func weatherCommand(ctx *cli.Context, coreApp *app.App) error {
 	}
 
 	fmt.Println("Weather information:")
-	for wp, data := range weatherData {
-		fmt.Printf("  %s: %s\n", wp, data)
+	for wp, weather := range weatherData {
+		fmt.Printf("  %s:\n", wp)
+		fmt.Printf("    Visibility: %d SM\n", weather.Visibility)
+		if len(weather.Clouds) > 0 {
+			fmt.Printf("    Clouds:\n")
+			for _, cloud := range weather.Clouds {
+				fmt.Printf("      %s at %d ft\n", cloud.Coverage, cloud.Base)
+			}
+		} else {
+			fmt.Printf("    Clouds: Clear\n")
+		}
+		fmt.Printf("    Raw: %s\n", weather.RawMetar)
 	}
 
 	return nil

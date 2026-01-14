@@ -20,11 +20,12 @@ const (
 type DllConnection struct {
 	dll *windows.DLL
 
-	open                    *windows.Proc
-	close                   *windows.Proc
-	addToFacilityDefinition *windows.Proc
-	requestFacilityData     *windows.Proc
-	getNextDispatch         *windows.Proc
+	open                      *windows.Proc
+	close                     *windows.Proc
+	addToFacilityDefinition   *windows.Proc
+	requestFacilityData       *windows.Proc
+	requestWeatherObservation *windows.Proc
+	getNextDispatch           *windows.Proc
 
 	handler uintptr
 }
@@ -60,18 +61,23 @@ func NewConnection() (*DllConnection, error) {
 	if err != nil {
 		return nil, err
 	}
+	reqWeather, err := mustProc("SimConnect_WeatherRequestObservationAtStation")
+	if err != nil {
+		return nil, err
+	}
 	getDisp, err := mustProc("SimConnect_GetNextDispatch")
 	if err != nil {
 		return nil, err
 	}
 
 	return &DllConnection{
-		dll:                     dll,
-		open:                    open,
-		close:                   closeP,
-		addToFacilityDefinition: addDef,
-		requestFacilityData:     reqFac,
-		getNextDispatch:         getDisp,
+		dll:                       dll,
+		open:                      open,
+		close:                     closeP,
+		addToFacilityDefinition:   addDef,
+		requestFacilityData:       reqFac,
+		requestWeatherObservation: reqWeather,
+		getNextDispatch:           getDisp,
 	}, nil
 }
 
@@ -117,6 +123,21 @@ func (connection *DllConnection) RequestFacilityData(icao string, region string,
 	)
 	if int32(handlerResult) != S_OK {
 		return fmt.Errorf("RequestFacilityData failed HRESULT=0x%08X", uint32(handlerResult))
+	}
+
+	return nil
+}
+
+func (connection *DllConnection) RequestWeatherObservation(icao string, requestID uint32) error {
+	icaoPtr, _ := helpers.CString(icao)
+
+	handlerResult, _, _ := connection.requestWeatherObservation.Call(
+		connection.handler,
+		uintptr(requestID),
+		uintptr(unsafe.Pointer(icaoPtr)),
+	)
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("RequestWeatherObservation failed HRESULT=0x%08X", uint32(handlerResult))
 	}
 
 	return nil

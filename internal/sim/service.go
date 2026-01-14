@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const clientTimeout = 10 * time.Second
+
 // Service is a layer between applications and Client
 type Service struct {
 	client *Client
@@ -25,7 +27,7 @@ func (s *Service) GetFrequency(icao string) ([]AirportFrequency, error) {
 		return nil, fmt.Errorf("ICAO code cannot be empty")
 	}
 
-	freqs, err := s.client.GetAirportFrequencies(icao, 10*time.Second)
+	freqs, err := s.client.GetAirportFrequencies(icao, clientTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get frequencies for %s: %w", icao, err)
 	}
@@ -34,7 +36,7 @@ func (s *Service) GetFrequency(icao string) ([]AirportFrequency, error) {
 }
 
 // GetWeather retrieves weather information for the specified waypoints
-func (s *Service) GetWeather(waypoints []string) (map[string]string, error) {
+func (s *Service) GetWeather(waypoints []string) (map[string]*Weather, error) {
 	if len(waypoints) == 0 {
 		return nil, fmt.Errorf("no waypoints provided")
 	}
@@ -42,7 +44,7 @@ func (s *Service) GetWeather(waypoints []string) (map[string]string, error) {
 	// Clean up waypoints
 	cleanedWaypoints := make([]string, 0, len(waypoints))
 	for _, wp := range waypoints {
-		wp = strings.ToUpper(strings.TrimSpace(wp))
+		wp = strings.TrimSpace(wp)
 		if wp != "" {
 			cleanedWaypoints = append(cleanedWaypoints, wp)
 		}
@@ -52,12 +54,5 @@ func (s *Service) GetWeather(waypoints []string) (map[string]string, error) {
 		return nil, fmt.Errorf("no valid waypoints provided")
 	}
 
-	// TODO: Implement actual weather retrieval logic
-	// For now, return placeholder data
-	result := make(map[string]string)
-	for _, wp := range cleanedWaypoints {
-		result[wp] = "(weather data not yet implemented)"
-	}
-
-	return result, nil
+	return s.client.GetWeather(cleanedWaypoints, clientTimeout)
 }
