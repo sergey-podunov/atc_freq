@@ -18,9 +18,9 @@ func NewApp(connection sim.Connection) *App {
 	}
 }
 
-// Startup is called when the app starts. The context is saved
+// AddContext is called when the Wails app starts. The context is saved
 // so we can call the runtime methods
-func (a *App) Startup(ctx context.Context) {
+func (a *App) AddContext(ctx context.Context) {
 	a.ctx = ctx
 }
 

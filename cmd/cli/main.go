@@ -5,7 +5,6 @@ package main
 import (
 	"atc_freq/internal/app"
 	"atc_freq/internal/sim"
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -21,7 +20,6 @@ func main() {
 	}
 
 	coreApp := app.NewApp(connection)
-	coreApp.Startup(context.Background())
 
 	cliApp := &cli.App{
 		Name:  "atc_freq",
