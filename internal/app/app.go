@@ -10,7 +10,7 @@ type App struct {
 	simService *sim.Service
 }
 
-func NewApp(connection *sim.Connection) *App {
+func NewApp(connection sim.ConnectionInterface) *App {
 	client := sim.NewClient(connection)
 
 	return &App{
