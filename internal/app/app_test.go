@@ -24,13 +24,13 @@ func TestApp_GetAirportFrequencies(t *testing.T) {
 				m.On("Open", "go-freq-client").Return(nil).Once()
 
 				// Expect all addField calls
-				m.On("addField", "OPEN AIRPORT", uint32(sim.DEFINE_ID)).Return(nil).Once()
-				m.On("addField", "OPEN FREQUENCY", uint32(sim.DEFINE_ID)).Return(nil).Once()
-				m.On("addField", "TYPE", uint32(sim.DEFINE_ID)).Return(nil).Once()
-				m.On("addField", "FREQUENCY", uint32(sim.DEFINE_ID)).Return(nil).Once()
-				m.On("addField", "NAME", uint32(sim.DEFINE_ID)).Return(nil).Once()
-				m.On("addField", "CLOSE FREQUENCY", uint32(sim.DEFINE_ID)).Return(nil).Once()
-				m.On("addField", "CLOSE AIRPORT", uint32(sim.DEFINE_ID)).Return(nil).Once()
+				m.On("AddField", "OPEN AIRPORT", uint32(sim.DEFINE_ID)).Return(nil).Once()
+				m.On("AddField", "OPEN FREQUENCY", uint32(sim.DEFINE_ID)).Return(nil).Once()
+				m.On("AddField", "TYPE", uint32(sim.DEFINE_ID)).Return(nil).Once()
+				m.On("AddField", "FREQUENCY", uint32(sim.DEFINE_ID)).Return(nil).Once()
+				m.On("AddField", "NAME", uint32(sim.DEFINE_ID)).Return(nil).Once()
+				m.On("AddField", "CLOSE FREQUENCY", uint32(sim.DEFINE_ID)).Return(nil).Once()
+				m.On("AddField", "CLOSE AIRPORT", uint32(sim.DEFINE_ID)).Return(nil).Once()
 
 				// Expect RequestFacilityData
 				m.On("RequestFacilityData", "KJFK", "", uint32(sim.DEFINE_ID), uint32(sim.REQUEST_ID)).Return(nil).Once()

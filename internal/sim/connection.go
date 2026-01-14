@@ -17,7 +17,7 @@ const (
 	REQUEST_ID = 0x2001
 )
 
-type Connection struct {
+type DllConnection struct {
 	dll *windows.DLL
 
 	open                    *windows.Proc
@@ -29,7 +29,7 @@ type Connection struct {
 	handler uintptr
 }
 
-func NewConnection() (*Connection, error) {
+func NewConnection() (*DllConnection, error) {
 	dll, err := windows.LoadDLL("SimConnect.dll")
 	if err != nil {
 		return nil, fmt.Errorf("load Connection.dll: %w", err)
@@ -65,7 +65,7 @@ func NewConnection() (*Connection, error) {
 		return nil, err
 	}
 
-	return &Connection{
+	return &DllConnection{
 		dll:                     dll,
 		open:                    open,
 		close:                   closeP,
@@ -75,7 +75,7 @@ func NewConnection() (*Connection, error) {
 	}, nil
 }
 
-func (connection *Connection) Open(name string) error {
+func (connection *DllConnection) Open(name string) error {
 	namePtr, _ := helpers.CString(name)
 	r1, _, _ := connection.open.Call(
 		uintptr(unsafe.Pointer(&connection.handler)),
@@ -88,7 +88,7 @@ func (connection *Connection) Open(name string) error {
 	return nil
 }
 
-func (connection *Connection) addField(field string, defineID uint32) error {
+func (connection *DllConnection) AddField(field string, defineID uint32) error {
 	fptr, err := helpers.CString(field)
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func (connection *Connection) addField(field string, defineID uint32) error {
 	return nil
 }
 
-func (connection *Connection) RequestFacilityData(icao string, region string, defineID uint32, requestID uint32) error {
+func (connection *DllConnection) RequestFacilityData(icao string, region string, defineID uint32, requestID uint32) error {
 	icaoPtr, _ := helpers.CString(icao)
 	regionPtr, _ := helpers.CString(region)
 
@@ -122,11 +122,11 @@ func (connection *Connection) RequestFacilityData(icao string, region string, de
 	return nil
 }
 
-func (connection *Connection) Close() {
+func (connection *DllConnection) Close() {
 	//todo connection.close.Call(connection.handler)
 }
 
-func (connection *Connection) GetNextDispatch() (*SIMCONNECT_RECV, bool) {
+func (connection *DllConnection) GetNextDispatch() (*SIMCONNECT_RECV, bool) {
 	var ppData *SIMCONNECT_RECV
 	var cbData uint32
 

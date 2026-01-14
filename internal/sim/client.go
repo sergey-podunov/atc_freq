@@ -42,10 +42,10 @@ var freqTypeMap = map[int32]string{
 }
 
 type Client struct {
-	simConnection ConnectionInterface
+	simConnection Connection
 }
 
-func NewClient(conn ConnectionInterface) *Client {
+func NewClient(conn Connection) *Client {
 	return &Client{simConnection: conn}
 }
 
@@ -63,25 +63,25 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 	defer connection.Close()
 
 	// Facility definition: OPEN AIRPORT -> OPEN FREQUENCY -> TYPE/FREQUENCY/NAME -> CLOSE -> CLOSE
-	if err := connection.addField("OPEN AIRPORT", DEFINE_ID); err != nil {
+	if err := connection.AddField("OPEN AIRPORT", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := connection.addField("OPEN FREQUENCY", DEFINE_ID); err != nil {
+	if err := connection.AddField("OPEN FREQUENCY", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := connection.addField("TYPE", DEFINE_ID); err != nil {
+	if err := connection.AddField("TYPE", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := connection.addField("FREQUENCY", DEFINE_ID); err != nil {
+	if err := connection.AddField("FREQUENCY", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := connection.addField("NAME", DEFINE_ID); err != nil {
+	if err := connection.AddField("NAME", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := connection.addField("CLOSE FREQUENCY", DEFINE_ID); err != nil {
+	if err := connection.AddField("CLOSE FREQUENCY", DEFINE_ID); err != nil {
 		return nil, err
 	}
-	if err := connection.addField("CLOSE AIRPORT", DEFINE_ID); err != nil {
+	if err := connection.AddField("CLOSE AIRPORT", DEFINE_ID); err != nil {
 		return nil, err
 	}
 

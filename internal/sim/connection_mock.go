@@ -17,7 +17,7 @@ func (m *MockConnection) Close() {
 	m.Called()
 }
 
-func (m *MockConnection) addField(field string, defineID uint32) error {
+func (m *MockConnection) AddField(field string, defineID uint32) error {
 	args := m.Called(field, defineID)
 	return args.Error(0)
 }
