@@ -25,6 +25,7 @@ type DllConnection struct {
 	addToFacilityDefinition   *windows.Proc
 	requestFacilityData       *windows.Proc
 	requestWeatherObservation *windows.Proc
+	requestCloudState         *windows.Proc
 	getNextDispatch           *windows.Proc
 
 	handler uintptr
@@ -65,11 +66,16 @@ func NewConnection() (*DllConnection, error) {
 	if err != nil {
 		return nil, err
 	}
+	reqCloudState, err := mustProc("SimConnect_WeatherRequestCloudState")
+	if err != nil {
+		return nil, err
+	}
 	getDisp, err := mustProc("SimConnect_GetNextDispatch")
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("Connection initialized")
 	return &DllConnection{
 		dll:                       dll,
 		open:                      open,
@@ -77,6 +83,7 @@ func NewConnection() (*DllConnection, error) {
 		addToFacilityDefinition:   addDef,
 		requestFacilityData:       reqFac,
 		requestWeatherObservation: reqWeather,
+		requestCloudState:         reqCloudState,
 		getNextDispatch:           getDisp,
 	}, nil
 }
@@ -138,6 +145,25 @@ func (connection *DllConnection) RequestWeatherObservation(icao string, requestI
 	)
 	if int32(handlerResult) != S_OK {
 		return fmt.Errorf("RequestWeatherObservation failed HRESULT=0x%08X", uint32(handlerResult))
+	}
+
+	return nil
+}
+
+func (connection *DllConnection) RequestCloudState(requestID uint32, minLat, minLon, minAlt, maxLat, maxLon, maxAlt float32) error {
+	handlerResult, _, _ := connection.requestCloudState.Call(
+		connection.handler,
+		uintptr(requestID),
+		uintptr(*(*uint32)(unsafe.Pointer(&minLat))),
+		uintptr(*(*uint32)(unsafe.Pointer(&minLon))),
+		uintptr(*(*uint32)(unsafe.Pointer(&minAlt))),
+		uintptr(*(*uint32)(unsafe.Pointer(&maxLat))),
+		uintptr(*(*uint32)(unsafe.Pointer(&maxLon))),
+		uintptr(*(*uint32)(unsafe.Pointer(&maxAlt))),
+		0, // dwFlags
+	)
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("RequestCloudState failed HRESULT=0x%08X", uint32(handlerResult))
 	}
 
 	return nil

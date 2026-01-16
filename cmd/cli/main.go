@@ -22,7 +22,7 @@ func main() {
 	coreApp := app.NewApp(connection)
 
 	cliApp := &cli.App{
-		Name:  "atc_freq",
+		Name:  "cli",
 		Usage: "Get airport frequencies and weather information from MSFS",
 		Commands: []*cli.Command{
 			{

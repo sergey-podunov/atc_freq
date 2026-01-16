@@ -3,6 +3,7 @@ package sim
 import (
 	"atc_freq/internal/helpers"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 	"unsafe"
@@ -34,6 +35,21 @@ type Weather struct {
 	Visibility int // Visibility in statute miles (0-10+)
 	Clouds     []CloudLayer
 	RawMetar   string // Raw METAR string from sim
+}
+
+// CloudDensity represents interpreted cloud density at a grid point
+type CloudDensity struct {
+	Value      byte    // Raw density value (0-255)
+	Percentage float64 // Density as percentage (0-100)
+	Coverage   string  // Human-readable coverage level
+	MinAlt     int     // Minimum altitude in feet
+	MaxAlt     int     // Maximum altitude in feet
+}
+
+// Coordinates represents geographic coordinates
+type Coordinates struct {
+	Lat float64
+	Lon float64
 }
 
 var freqTypeMap = map[int32]string{
@@ -118,8 +134,8 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 
 		switch ppData.DwID {
 		case SIMCONNECT_RECV_ID_EXCEPTION:
-			// Cast to SIMCONNECT_RECV_EXCEPTION and print dwException
-			fmt.Printf("Connection Exception received! ID: %d\n", ppData.DwID)
+			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return nil, fmt.Errorf("connection exception received: %d (sendID: %d, index: %d)", exception.DwException, exception.DwSendID, exception.DwIndex)
 		case SIMCONNECT_RECV_ID_FACILITY_DATA:
 			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
 
@@ -166,7 +182,10 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 }
 
 const (
-	WEATHER_REQUEST_ID_BASE = 0x3001
+	WEATHER_REQUEST_ID_BASE     = 0x3001
+	CLOUD_STATE_REQUEST_ID_BASE = 0x4001
+	WAYPOINT_DEFINE_ID          = 0x1002
+	WAYPOINT_REQUEST_ID         = 0x2002
 )
 
 // GetWeather retrieves weather information for the specified waypoints
@@ -211,7 +230,7 @@ func (client *Client) GetWeather(waypoints []string, timeout time.Duration) (map
 
 		switch ppData.DwID {
 		case SIMCONNECT_RECV_ID_EXCEPTION:
-			fmt.Printf("Weather Exception received! ID: %d\n", ppData.DwID)
+			return nil, fmt.Errorf("connection exception received, ID: %d", ppData.DwID)
 		case SIMCONNECT_RECV_ID_WEATHER_OBSERVATION:
 			weatherData := (*SIMCONNECT_RECV_WEATHER_OBSERVATION)(unsafe.Pointer(ppData))
 
@@ -235,6 +254,196 @@ func (client *Client) GetWeather(waypoints []string, timeout time.Duration) (map
 	}
 
 	return result, nil
+}
+
+// GetWaypointCoordinates retrieves coordinates for the specified waypoints/airports
+func (client *Client) GetWaypointCoordinates(waypoints []string, timeout time.Duration) (map[string]Coordinates, error) {
+	if len(waypoints) == 0 {
+		return nil, fmt.Errorf("no waypoints provided")
+	}
+
+	connection := client.simConnection
+	err := connection.Open("go-coords-client")
+	if err != nil {
+		return nil, err
+	}
+	defer connection.Close()
+
+	// Define facility structure to get lat/lon
+	if err := connection.AddField("OPEN AIRPORT", WAYPOINT_DEFINE_ID); err != nil {
+		return nil, err
+	}
+	if err := connection.AddField("LATITUDE", WAYPOINT_DEFINE_ID); err != nil {
+		return nil, err
+	}
+	if err := connection.AddField("LONGITUDE", WAYPOINT_DEFINE_ID); err != nil {
+		return nil, err
+	}
+	if err := connection.AddField("CLOSE AIRPORT", WAYPOINT_DEFINE_ID); err != nil {
+		return nil, err
+	}
+
+	// Request facility data for each waypoint to get coordinates
+	requestIDToWaypoint := make(map[uint32]string)
+	for i, wp := range waypoints {
+		wp = strings.ToUpper(strings.TrimSpace(wp))
+		if wp == "" {
+			continue
+		}
+		requestID := uint32(WAYPOINT_REQUEST_ID + i)
+		requestIDToWaypoint[requestID] = wp
+
+		err = connection.RequestFacilityData(wp, "", WAYPOINT_DEFINE_ID, requestID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to request facility data for %s: %w", wp, err)
+		}
+	}
+
+	result := make(map[string]Coordinates)
+	pendingRequests := len(requestIDToWaypoint)
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) && pendingRequests > 0 {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case SIMCONNECT_RECV_ID_EXCEPTION:
+			return nil, fmt.Errorf("connection exception during facility request")
+		case SIMCONNECT_RECV_ID_FACILITY_DATA:
+			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
+			wp, exists := requestIDToWaypoint[facData.UserRequestId]
+			if !exists {
+				continue
+			}
+
+			// Extract lat/lon from facility data
+			// When using AddField with LATITUDE/LONGITUDE, data contains only requested fields
+			dataPtr := unsafe.Pointer(&facData.Data)
+			latPtr := (*float64)(dataPtr)                              // LATITUDE at offset 0
+			lonPtr := (*float64)(unsafe.Pointer(uintptr(dataPtr) + 8)) // LONGITUDE at offset 8
+
+			result[wp] = Coordinates{
+				Lat: *latPtr,
+				Lon: *lonPtr,
+			}
+
+		case SIMCONNECT_RECV_ID_FACILITY_DATA_END:
+			end := (*SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
+			if _, exists := requestIDToWaypoint[end.RequestId]; exists {
+				pendingRequests--
+			}
+		}
+	}
+
+	if pendingRequests > 0 {
+		return nil, fmt.Errorf("timeout getting waypoint coordinates: %d/%d received", len(result), len(requestIDToWaypoint))
+	}
+
+	return result, nil
+}
+
+// GetCloudDensityByCoordinates retrieves cloud density at the center of a grid for specified coordinates and altitude range
+func (client *Client) GetCloudDensityByCoordinates(coords Coordinates, minAlt, maxAlt float32, timeout time.Duration) (CloudDensity, error) {
+	connection := client.simConnection
+	err := connection.Open("go-cloud-density-client")
+	if err != nil {
+		return CloudDensity{}, err
+	}
+	defer connection.Close()
+
+	requestID := uint32(CLOUD_STATE_REQUEST_ID_BASE)
+
+	// Calculate offsets for 5x5 km box (±2.5 km from center)
+	// 1 degree of latitude ≈ 111 km
+	// 1 degree of longitude ≈ 111 km * cos(latitude)
+	const kmPerDegreeLat = 111.0
+	const halfBoxKm = 2.5
+
+	latOffset := halfBoxKm / kmPerDegreeLat
+	lonOffset := halfBoxKm / (kmPerDegreeLat * math.Cos(coords.Lat*math.Pi/180))
+
+	err = connection.RequestCloudState(
+		requestID,
+		float32(coords.Lat-latOffset), float32(coords.Lon-lonOffset), minAlt,
+		float32(coords.Lat+latOffset), float32(coords.Lon+lonOffset), maxAlt,
+	)
+	if err != nil {
+		return CloudDensity{}, fmt.Errorf("failed to request cloud state: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case SIMCONNECT_RECV_ID_EXCEPTION:
+			return CloudDensity{}, fmt.Errorf("connection exception during cloud state request")
+		case SIMCONNECT_RECV_ID_CLOUD_STATE:
+			cloudData := (*SIMCONNECT_RECV_CLOUD_STATE)(unsafe.Pointer(ppData))
+			if cloudData.DwRequestID != requestID {
+				continue
+			}
+
+			// Extract raw cloud data
+			//dataPtr := unsafe.Pointer(uintptr(unsafe.Pointer(cloudData)) + unsafe.Sizeof(*cloudData))
+			dataPtr := unsafe.Pointer(&cloudData.RgbData[0])
+			rawData := make([]byte, cloudData.DwArraySize)
+			for i := uint32(0); i < cloudData.DwArraySize; i++ {
+				rawData[i] = *(*byte)(unsafe.Pointer(uintptr(dataPtr) + uintptr(i)))
+			}
+
+			fmt.Printf("raw cloud data between %f0.1 - %f0.1", minAlt, maxAlt)
+			for _, val := range rawData {
+				density := interpretCloudDensity(val)
+				fmt.Printf(" %s - %.2f%%, ", density.Coverage, density.Percentage)
+			}
+
+			// Return density at center of 64x64 grid (position 32,32)
+			const gridSize = 64
+			centerIndex := (gridSize/2)*gridSize + (gridSize / 2)
+			if centerIndex < len(rawData) {
+				return interpretCloudDensity(rawData[centerIndex]), nil
+			}
+
+			return CloudDensity{}, nil
+		}
+	}
+
+	return CloudDensity{}, fmt.Errorf("timeout waiting for cloud state response")
+}
+
+// interpretCloudDensity converts a raw density byte into a CloudDensity struct
+func interpretCloudDensity(value byte) CloudDensity {
+	percentage := (float64(value) / 255.0) * 100.0
+
+	var coverage string
+	switch {
+	case value == 0:
+		coverage = "CLR" // Clear
+	case value < 64:
+		coverage = "FEW" // Few (1/8 to 2/8)
+	case value < 128:
+		coverage = "SCT" // Scattered (3/8 to 4/8)
+	case value < 192:
+		coverage = "BKN" // Broken (5/8 to 7/8)
+	default:
+		coverage = "OVC" // Overcast (8/8)
+	}
+
+	return CloudDensity{
+		Value:      value,
+		Percentage: percentage,
+		Coverage:   coverage,
+	}
 }
 
 // parseMetar parses a METAR string and extracts visibility and cloud layers

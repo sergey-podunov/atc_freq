@@ -38,4 +38,4 @@ assets*.txt
 
 # Claude Code temp files
 tmpclaude*
-
+.claude/

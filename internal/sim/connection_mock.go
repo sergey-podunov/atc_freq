@@ -32,6 +32,11 @@ func (m *MockConnection) RequestWeatherObservation(icao string, requestID uint32
 	return args.Error(0)
 }
 
+func (m *MockConnection) RequestCloudState(requestID uint32, minLat, minLon, minAlt, maxLat, maxLon, maxAlt float32) error {
+	args := m.Called(requestID, minLat, minLon, minAlt, maxLat, maxLon, maxAlt)
+	return args.Error(0)
+}
+
 func (m *MockConnection) GetNextDispatch() (*SIMCONNECT_RECV, bool) {
 	args := m.Called()
 	if args.Get(0) == nil {
