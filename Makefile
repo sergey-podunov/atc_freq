@@ -4,6 +4,7 @@
 # We use g++ because SimConnect.h uses C++ features
 export CC = g++
 export CGO_CFLAGS = -x c++ -I$(CURDIR)
+export TMP := $(or $(TMP),$(TEMP),$(TMPDIR),/tmp)
 
 # Tools
 GO = go
