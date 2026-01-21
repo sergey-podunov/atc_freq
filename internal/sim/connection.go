@@ -20,14 +20,16 @@ const (
 type DllConnection struct {
 	dll *windows.DLL
 
-	open                      *windows.Proc
-	close                     *windows.Proc
-	addToFacilityDefinition   *windows.Proc
-	requestFacilityData       *windows.Proc
-	requestWeatherObservation *windows.Proc
-	requestCloudState         *windows.Proc
-	createSimulatedObject     *windows.Proc
-	getNextDispatch           *windows.Proc
+	open                        *windows.Proc
+	close                       *windows.Proc
+	addToFacilityDefinition     *windows.Proc
+	addToDataDefinition         *windows.Proc
+	requestFacilityData         *windows.Proc
+	requestWeatherObservation   *windows.Proc
+	requestCloudState           *windows.Proc
+	requestDataOnSimObjectType  *windows.Proc
+	createSimulatedObject       *windows.Proc
+	getNextDispatch             *windows.Proc
 
 	handler uintptr
 }
@@ -59,6 +61,10 @@ func NewConnection() (*DllConnection, error) {
 	if err != nil {
 		return nil, err
 	}
+	addDataDef, err := mustProc("SimConnect_AddToDataDefinition")
+	if err != nil {
+		return nil, err
+	}
 	reqFac, err := mustProc("SimConnect_RequestFacilityData")
 	if err != nil {
 		return nil, err
@@ -68,6 +74,10 @@ func NewConnection() (*DllConnection, error) {
 		return nil, err
 	}
 	reqCloudState, err := mustProc("SimConnect_WeatherRequestCloudState")
+	if err != nil {
+		return nil, err
+	}
+	reqDataOnSimObjectType, err := mustProc("SimConnect_RequestDataOnSimObjectType")
 	if err != nil {
 		return nil, err
 	}
@@ -82,15 +92,17 @@ func NewConnection() (*DllConnection, error) {
 
 	fmt.Println("Connection initialized")
 	return &DllConnection{
-		dll:                       dll,
-		open:                      open,
-		close:                     closeP,
-		addToFacilityDefinition:   addDef,
-		requestFacilityData:       reqFac,
-		requestWeatherObservation: reqWeather,
-		requestCloudState:         reqCloudState,
-		createSimulatedObject:     createSimObject,
-		getNextDispatch:           getDisp,
+		dll:                        dll,
+		open:                       open,
+		close:                      closeP,
+		addToFacilityDefinition:    addDef,
+		addToDataDefinition:        addDataDef,
+		requestFacilityData:        reqFac,
+		requestWeatherObservation:  reqWeather,
+		requestCloudState:          reqCloudState,
+		requestDataOnSimObjectType: reqDataOnSimObjectType,
+		createSimulatedObject:      createSimObject,
+		getNextDispatch:            getDisp,
 	}, nil
 }
 
@@ -196,6 +208,45 @@ func (connection *DllConnection) CreateSimulatedObject(containerTitle string, in
 
 func (connection *DllConnection) Close() {
 	//todo connection.close.Call(connection.handler)
+}
+
+func (connection *DllConnection) AddToDataDefinition(defineID uint32, datumName string, unitsName string, datumType uint32) error {
+	datumPtr, err := helpers.CString(datumName)
+	if err != nil {
+		return err
+	}
+	unitsPtr, err := helpers.CString(unitsName)
+	if err != nil {
+		return err
+	}
+
+	handlerResult, _, _ := connection.addToDataDefinition.Call(
+		connection.handler,
+		uintptr(defineID),
+		uintptr(unsafe.Pointer(datumPtr)),
+		uintptr(unsafe.Pointer(unitsPtr)),
+		uintptr(datumType),
+		0, // fEpsilon (default)
+		0, // DatumID (unused)
+	)
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("AddToDataDefinition(%q) failed HRESULT=0x%08X", datumName, uint32(handlerResult))
+	}
+	return nil
+}
+
+func (connection *DllConnection) RequestDataOnSimObjectType(requestID, defineID uint32, radius uint32, objectType uint32) error {
+	handlerResult, _, _ := connection.requestDataOnSimObjectType.Call(
+		connection.handler,
+		uintptr(requestID),
+		uintptr(defineID),
+		uintptr(radius),
+		uintptr(objectType),
+	)
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("RequestDataOnSimObjectType failed HRESULT=0x%08X", uint32(handlerResult))
+	}
+	return nil
 }
 
 func (connection *DllConnection) GetNextDispatch() (*SIMCONNECT_RECV, bool) {
