@@ -26,6 +26,7 @@ type DllConnection struct {
 	requestFacilityData       *windows.Proc
 	requestWeatherObservation *windows.Proc
 	requestCloudState         *windows.Proc
+	createSimulatedObject     *windows.Proc
 	getNextDispatch           *windows.Proc
 
 	handler uintptr
@@ -70,6 +71,10 @@ func NewConnection() (*DllConnection, error) {
 	if err != nil {
 		return nil, err
 	}
+	createSimObject, err := mustProc("SimConnect_AICreateSimulatedObject")
+	if err != nil {
+		return nil, err
+	}
 	getDisp, err := mustProc("SimConnect_GetNextDispatch")
 	if err != nil {
 		return nil, err
@@ -84,6 +89,7 @@ func NewConnection() (*DllConnection, error) {
 		requestFacilityData:       reqFac,
 		requestWeatherObservation: reqWeather,
 		requestCloudState:         reqCloudState,
+		createSimulatedObject:     createSimObject,
 		getNextDispatch:           getDisp,
 	}, nil
 }
@@ -164,6 +170,25 @@ func (connection *DllConnection) RequestCloudState(requestID uint32, minLat, min
 	)
 	if int32(handlerResult) != S_OK {
 		return fmt.Errorf("RequestCloudState failed HRESULT=0x%08X", uint32(handlerResult))
+	}
+
+	return nil
+}
+
+func (connection *DllConnection) CreateSimulatedObject(containerTitle string, initPos SIMCONNECT_DATA_INITPOSITION, requestID uint32) error {
+	titlePtr, err := helpers.CString(containerTitle)
+	if err != nil {
+		return err
+	}
+
+	handlerResult, _, _ := connection.createSimulatedObject.Call(
+		connection.handler,
+		uintptr(unsafe.Pointer(titlePtr)),
+		uintptr(unsafe.Pointer(&initPos)),
+		uintptr(requestID),
+	)
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("AICreateSimulatedObject failed HRESULT=0x%08X", uint32(handlerResult))
 	}
 
 	return nil

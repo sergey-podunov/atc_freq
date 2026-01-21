@@ -184,9 +184,53 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 const (
 	WEATHER_REQUEST_ID_BASE     = 0x3001
 	CLOUD_STATE_REQUEST_ID_BASE = 0x4001
+	AI_CREATE_REQUEST_ID_BASE   = 0x5001
 	WAYPOINT_DEFINE_ID          = 0x1002
 	WAYPOINT_REQUEST_ID         = 0x2002
 )
+
+// CreateAIObject creates a simulated AI object and returns its simObjectId.
+func (client *Client) CreateAIObject(containerTitle string, initPos SIMCONNECT_DATA_INITPOSITION, timeout time.Duration) (uint32, error) {
+	containerTitle = strings.TrimSpace(containerTitle)
+	if containerTitle == "" {
+		return 0, fmt.Errorf("container title is empty")
+	}
+
+	connection := client.simConnection
+	err := connection.Open("go-ai-object-client")
+	if err != nil {
+		return 0, err
+	}
+	defer connection.Close()
+
+	requestID := uint32(AI_CREATE_REQUEST_ID_BASE)
+	if err := connection.CreateSimulatedObject(containerTitle, initPos, requestID); err != nil {
+		return 0, err
+	}
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return 0, fmt.Errorf("connection exception received: %d (sendID: %d, index: %d)", exception.DwException, exception.DwSendID, exception.DwIndex)
+		case SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID:
+			assigned := (*SIMCONNECT_RECV_ASSIGNED_OBJECT_ID)(unsafe.Pointer(ppData))
+			if assigned.DwRequestID != requestID {
+				continue
+			}
+			return assigned.DwObjectID, nil
+		}
+	}
+
+	return 0, fmt.Errorf("timeout waiting for assigned object id")
+}
 
 // GetWeather retrieves weather information for the specified waypoints
 func (client *Client) GetWeather(waypoints []string, timeout time.Duration) (map[string]*Weather, error) {

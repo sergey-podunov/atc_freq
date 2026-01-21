@@ -37,6 +37,11 @@ func (m *MockConnection) RequestCloudState(requestID uint32, minLat, minLon, min
 	return args.Error(0)
 }
 
+func (m *MockConnection) CreateSimulatedObject(containerTitle string, initPos SIMCONNECT_DATA_INITPOSITION, requestID uint32) error {
+	args := m.Called(containerTitle, initPos, requestID)
+	return args.Error(0)
+}
+
 func (m *MockConnection) GetNextDispatch() (*SIMCONNECT_RECV, bool) {
 	args := m.Called()
 	if args.Get(0) == nil {
