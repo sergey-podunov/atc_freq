@@ -63,14 +63,43 @@ func (s *Service) GetCloudDensity(waypoints []string) (map[string][]CloudDensity
 	}
 
 	// Get coordinates for all waypoints
+	fmt.Printf("Getting coordinates for %d waypoints...\n", len(cleanedWaypoints))
 	coords, err := s.client.GetWaypointCoordinates(cleanedWaypoints, clientTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get waypoint coordinates: %w", err)
 	}
+	fmt.Printf("Coordinates retrieved: %s\n", coords)
+
+	fmt.Println("Getting ambient cloud state...")
+	inCloud, err := s.client.GetAmbientInCloud(clientTimeout * 100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ambient in cloud: %w", err)
+	}
 
 	// Get cloud density for each waypoint at all altitude layers (0-10000 feet, 500 feet step)
 	result := make(map[string][]CloudDensity)
-	for wp, coord := range coords {
+	var cloudDensity CloudDensity
+	if inCloud {
+		cloudDensity = CloudDensity{
+			Coverage:   "OVERCAST",
+			Value:      255,
+			MinAlt:     3000,
+			MaxAlt:     3500,
+			Percentage: 100,
+		}
+	} else {
+		cloudDensity = CloudDensity{
+			Coverage:   "CLR",
+			Value:      0,
+			MinAlt:     3000,
+			MaxAlt:     3500,
+			Percentage: 0,
+		}
+	}
+
+	result[cleanedWaypoints[0]] = append(result[cleanedWaypoints[0]], cloudDensity)
+
+	/*	for wp, coord := range coords {
 		var layers []CloudDensity
 		for minAlt := 0; minAlt < maxAltitude; minAlt += altStep {
 			maxAlt := minAlt + altStep
@@ -83,7 +112,7 @@ func (s *Service) GetCloudDensity(waypoints []string) (map[string][]CloudDensity
 			layers = append(layers, density)
 		}
 		result[wp] = layers
-	}
+	}*/
 
 	return result, nil
 }

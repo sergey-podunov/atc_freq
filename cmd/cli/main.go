@@ -136,9 +136,15 @@ func cloudsCommand(ctx *cli.Context, coreApp *app.App) error {
 
 	icao := ctx.Args().Get(0)
 
-	// TODO: Call coreApp method when implemented
+	waypoints := []string{icao}
+
+	cloudDensity, err := coreApp.GetClouds(waypoints)
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("Cloud density for %s:\n", strings.ToUpper(icao))
-	fmt.Printf("  (stub - not yet implemented)\n")
+	fmt.Printf("  Density: %s\n", cloudDensity)
 
 	return nil
 }
