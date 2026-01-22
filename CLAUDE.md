@@ -94,5 +94,22 @@ Tests use a mock connection (`MockConnection`) with testify/mock. Test helpers i
 - Microsoft Flight Simulator with SimConnect.dll
 - Wails CLI for GUI builds
 
+## Custom Agents
+
+### Verify Agent (`/verify`)
+
+Use the verify agent to check if your changes are valid before committing:
+
+```
+/verify
+```
+
+This agent will:
+1. Run `make generate` to ensure definitions are current
+2. Run `go build ./...` to verify compilation
+3. Run `go test ./internal/...` to execute tests
+
+The agent reports success/failure for each step and suggests fixes for any issues.
+
 ## Misc
 Don't edit defs_generated.go directly. When some new consts from SimConnect.h are needed — add them using defs.go.
