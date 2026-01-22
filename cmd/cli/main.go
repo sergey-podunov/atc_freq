@@ -39,6 +39,13 @@ func main() {
 				Action:      weather(coreApp),
 				Description: "Retrieves weather information for a comma-separated list of waypoints.\n\n   Example:\n      atc_freq weather EDDB,UUMI,KJFK",
 			},
+			{
+				Name:        "clouds",
+				Usage:       "Get cloud density around an airport",
+				ArgsUsage:   "<ICAO>",
+				Action:      clouds(coreApp),
+				Description: "Retrieves cloud density information around the specified airport.\n\n   Example:\n      atc_freq clouds EDDB",
+			},
 		},
 	}
 
@@ -112,6 +119,26 @@ func weatherCommand(ctx *cli.Context, coreApp *app.App) error {
 		}
 		fmt.Printf("    Raw: %s\n", weather.RawMetar)
 	}
+
+	return nil
+}
+
+func clouds(coreApp *app.App) cli.ActionFunc {
+	return func(cliContext *cli.Context) error {
+		return cloudsCommand(cliContext, coreApp)
+	}
+}
+
+func cloudsCommand(ctx *cli.Context, coreApp *app.App) error {
+	if ctx.NArg() != 1 {
+		return fmt.Errorf("requires exactly one ICAO code argument")
+	}
+
+	icao := ctx.Args().Get(0)
+
+	// TODO: Call coreApp method when implemented
+	fmt.Printf("Cloud density for %s:\n", strings.ToUpper(icao))
+	fmt.Printf("  (stub - not yet implemented)\n")
 
 	return nil
 }
