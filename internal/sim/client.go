@@ -71,6 +71,61 @@ var freqTypeMap = map[int32]string{
 	15: "GCO",
 }
 
+var exceptionNameMap = map[uint32]string{
+	SIMCONNECT_EXCEPTION_NONE:                              "NONE",
+	SIMCONNECT_EXCEPTION_ERROR:                             "ERROR",
+	SIMCONNECT_EXCEPTION_SIZE_MISMATCH:                     "SIZE_MISMATCH",
+	SIMCONNECT_EXCEPTION_UNRECOGNIZED_ID:                   "UNRECOGNIZED_ID",
+	SIMCONNECT_EXCEPTION_UNOPENED:                          "UNOPENED",
+	SIMCONNECT_EXCEPTION_VERSION_MISMATCH:                  "VERSION_MISMATCH",
+	SIMCONNECT_EXCEPTION_TOO_MANY_GROUPS:                   "TOO_MANY_GROUPS",
+	SIMCONNECT_EXCEPTION_NAME_UNRECOGNIZED:                 "NAME_UNRECOGNIZED",
+	SIMCONNECT_EXCEPTION_TOO_MANY_EVENT_NAMES:              "TOO_MANY_EVENT_NAMES",
+	SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE:                "EVENT_ID_DUPLICATE",
+	SIMCONNECT_EXCEPTION_TOO_MANY_MAPS:                     "TOO_MANY_MAPS",
+	SIMCONNECT_EXCEPTION_TOO_MANY_OBJECTS:                  "TOO_MANY_OBJECTS",
+	SIMCONNECT_EXCEPTION_TOO_MANY_REQUESTS:                 "TOO_MANY_REQUESTS",
+	SIMCONNECT_EXCEPTION_WEATHER_INVALID_PORT:              "WEATHER_INVALID_PORT",
+	SIMCONNECT_EXCEPTION_WEATHER_INVALID_METAR:             "WEATHER_INVALID_METAR",
+	SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_GET_OBSERVATION: "WEATHER_UNABLE_TO_GET_OBSERVATION",
+	SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_CREATE_STATION:  "WEATHER_UNABLE_TO_CREATE_STATION",
+	SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_REMOVE_STATION:  "WEATHER_UNABLE_TO_REMOVE_STATION",
+	SIMCONNECT_EXCEPTION_INVALID_DATA_TYPE:                 "INVALID_DATA_TYPE",
+	SIMCONNECT_EXCEPTION_INVALID_DATA_SIZE:                 "INVALID_DATA_SIZE",
+	SIMCONNECT_EXCEPTION_DATA_ERROR:                        "DATA_ERROR",
+	SIMCONNECT_EXCEPTION_INVALID_ARRAY:                     "INVALID_ARRAY",
+	SIMCONNECT_EXCEPTION_CREATE_OBJECT_FAILED:              "CREATE_OBJECT_FAILED",
+	SIMCONNECT_EXCEPTION_LOAD_FLIGHTPLAN_FAILED:            "LOAD_FLIGHTPLAN_FAILED",
+	SIMCONNECT_EXCEPTION_OPERATION_INVALID_FOR_OBJECT_TYPE: "OPERATION_INVALID_FOR_OBJECT_TYPE",
+	SIMCONNECT_EXCEPTION_ILLEGAL_OPERATION:                 "ILLEGAL_OPERATION",
+	SIMCONNECT_EXCEPTION_ALREADY_SUBSCRIBED:                "ALREADY_SUBSCRIBED",
+	SIMCONNECT_EXCEPTION_INVALID_ENUM:                      "INVALID_ENUM",
+	SIMCONNECT_EXCEPTION_DEFINITION_ERROR:                  "DEFINITION_ERROR",
+	SIMCONNECT_EXCEPTION_DUPLICATE_ID:                      "DUPLICATE_ID",
+	SIMCONNECT_EXCEPTION_DATUM_ID:                          "DATUM_ID",
+	SIMCONNECT_EXCEPTION_OUT_OF_BOUNDS:                     "OUT_OF_BOUNDS",
+	SIMCONNECT_EXCEPTION_ALREADY_CREATED:                   "ALREADY_CREATED",
+	SIMCONNECT_EXCEPTION_OBJECT_OUTSIDE_REALITY_BUBBLE:     "OBJECT_OUTSIDE_REALITY_BUBBLE",
+	SIMCONNECT_EXCEPTION_OBJECT_CONTAINER:                  "OBJECT_CONTAINER",
+	SIMCONNECT_EXCEPTION_OBJECT_AI:                         "OBJECT_AI",
+	SIMCONNECT_EXCEPTION_OBJECT_ATC:                        "OBJECT_ATC",
+	SIMCONNECT_EXCEPTION_OBJECT_SCHEDULE:                   "OBJECT_SCHEDULE",
+	SIMCONNECT_EXCEPTION_JETWAY_DATA:                       "JETWAY_DATA",
+	SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND:                  "ACTION_NOT_FOUND",
+	SIMCONNECT_EXCEPTION_NOT_AN_ACTION:                     "NOT_AN_ACTION",
+	SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS:           "INCORRECT_ACTION_PARAMS",
+	SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED:            "GET_INPUT_EVENT_FAILED",
+	SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:            "SET_INPUT_EVENT_FAILED",
+}
+
+// ExceptionName returns a human-readable name for a SimConnect exception ID
+func ExceptionName(exceptionID uint32) string {
+	if name, ok := exceptionNameMap[exceptionID]; ok {
+		return name
+	}
+	return fmt.Sprintf("UNKNOWN_%d", exceptionID)
+}
+
 type Client struct {
 	simConnection Connection
 }
@@ -135,7 +190,8 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 		switch ppData.DwID {
 		case SIMCONNECT_RECV_ID_EXCEPTION:
 			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
-			return nil, fmt.Errorf("connection exception received: %d (sendID: %d, index: %d)", exception.DwException, exception.DwSendID, exception.DwIndex)
+			return nil, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
 		case SIMCONNECT_RECV_ID_FACILITY_DATA:
 			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
 
@@ -221,7 +277,8 @@ func (client *Client) CreateAIObject(containerTitle string, initPos SIMCONNECT_D
 		switch ppData.DwID {
 		case SIMCONNECT_RECV_ID_EXCEPTION:
 			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
-			return 0, fmt.Errorf("connection exception received: %d (sendID: %d, index: %d)", exception.DwException, exception.DwSendID, exception.DwIndex)
+			return 0, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
 		case SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID:
 			assigned := (*SIMCONNECT_RECV_ASSIGNED_OBJECT_ID)(unsafe.Pointer(ppData))
 			if assigned.DwRequestID != requestID {
@@ -535,8 +592,8 @@ func (client *Client) GetAmbientInCloud(timeout time.Duration) (bool, error) {
 		switch ppData.DwID {
 		case SIMCONNECT_RECV_ID_EXCEPTION:
 			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
-			return false, fmt.Errorf("connection exception received: %d (sendID: %d, index: %d)",
-				exception.DwException, exception.DwSendID, exception.DwIndex)
+			return false, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
 		case SIMCONNECT_RECV_ID_SIMOBJECT_DATA, SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE:
 			simData := (*SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
 			if simData.DwRequestID != AMBIENT_IN_CLOUD_REQUEST_ID {

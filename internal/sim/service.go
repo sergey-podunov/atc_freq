@@ -136,7 +136,14 @@ func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]Clou
 	}
 	fmt.Printf("Coordinates retrieved: %+v\n", coords)
 
-	coord := coords[cleanedWaypoints[0]]
+	//coord := coords[cleanedWaypoints[0]]
+
+	coord := Coordinates{
+		//initial 52.362500, 13.517833
+		//10 meters west 52.362500, 13.517686
+		Lat: 52.362500,
+		Lon: 13.517686,
+	}
 
 	initposition := SIMCONNECT_DATA_INITPOSITION{
 		Latitude:  coord.Lat,
@@ -150,7 +157,7 @@ func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]Clou
 	}
 
 	fmt.Println("Creating AI object...")
-	simObjectId, err := s.client.CreateAIObject("someTitle", initposition, clientTimeout*100)
+	simObjectId, err := s.client.CreateAIObject("Cessna 152 Asobo", initposition, clientTimeout*100)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AI object: %w", err)
 	}
