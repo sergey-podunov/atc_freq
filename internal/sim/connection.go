@@ -30,6 +30,7 @@ type DllConnection struct {
 	requestDataOnSimObjectType *windows.Proc
 	requestDataOnSimObject     *windows.Proc
 	createSimulatedObject      *windows.Proc
+	createNonATCAircraft       *windows.Proc
 	getNextDispatch            *windows.Proc
 
 	handler uintptr
@@ -90,6 +91,10 @@ func NewConnection() (*DllConnection, error) {
 	if err != nil {
 		return nil, err
 	}
+	createNonATCAircraft, err := mustProc("SimConnect_AICreateNonATCAircraft")
+	if err != nil {
+		return nil, err
+	}
 	getDisp, err := mustProc("SimConnect_GetNextDispatch")
 	if err != nil {
 		return nil, err
@@ -108,6 +113,7 @@ func NewConnection() (*DllConnection, error) {
 		requestDataOnSimObjectType: reqDataOnSimObjectType,
 		requestDataOnSimObject:     reqDataOnSimObject,
 		createSimulatedObject:      createSimObject,
+		createNonATCAircraft:       createNonATCAircraft,
 		getNextDispatch:            getDisp,
 	}, nil
 }
@@ -207,6 +213,30 @@ func (connection *DllConnection) CreateSimulatedObject(containerTitle string, in
 	)
 	if int32(handlerResult) != S_OK {
 		return fmt.Errorf("AICreateSimulatedObject failed HRESULT=0x%08X", uint32(handlerResult))
+	}
+
+	return nil
+}
+
+func (connection *DllConnection) CreateNonATCAircraft(containerTitle string, tailNumber string, initPos SIMCONNECT_DATA_INITPOSITION, requestID uint32) error {
+	titlePtr, err := helpers.CString(containerTitle)
+	if err != nil {
+		return err
+	}
+	tailPtr, err := helpers.CString(tailNumber)
+	if err != nil {
+		return err
+	}
+
+	handlerResult, _, _ := connection.createNonATCAircraft.Call(
+		connection.handler,
+		uintptr(unsafe.Pointer(titlePtr)),
+		uintptr(unsafe.Pointer(tailPtr)),
+		uintptr(unsafe.Pointer(&initPos)),
+		uintptr(requestID),
+	)
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("AICreateNonATCAircraft failed HRESULT=0x%08X", uint32(handlerResult))
 	}
 
 	return nil

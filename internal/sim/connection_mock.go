@@ -57,6 +57,11 @@ func (m *MockConnection) CreateSimulatedObject(containerTitle string, initPos SI
 	return args.Error(0)
 }
 
+func (m *MockConnection) CreateNonATCAircraft(containerTitle string, tailNumber string, initPos SIMCONNECT_DATA_INITPOSITION, requestID uint32) error {
+	args := m.Called(containerTitle, tailNumber, initPos, requestID)
+	return args.Error(0)
+}
+
 func (m *MockConnection) GetNextDispatch() (*SIMCONNECT_RECV, bool) {
 	args := m.Called()
 	if args.Get(0) == nil {

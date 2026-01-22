@@ -11,5 +11,6 @@ type Connection interface {
 	RequestDataOnSimObjectType(requestID, defineID uint32, radius uint32, objectType uint32) error
 	RequestDataOnSimObject(requestID, defineID, objectID, period uint32) error
 	CreateSimulatedObject(containerTitle string, initPos SIMCONNECT_DATA_INITPOSITION, requestID uint32) error
+	CreateNonATCAircraft(containerTitle string, tailNumber string, initPos SIMCONNECT_DATA_INITPOSITION, requestID uint32) error
 	GetNextDispatch() (*SIMCONNECT_RECV, bool)
 }

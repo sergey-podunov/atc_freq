@@ -238,15 +238,15 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 }
 
 const (
-	WEATHER_REQUEST_ID_BASE              = 0x3001
-	CLOUD_STATE_REQUEST_ID_BASE          = 0x4001
-	AI_CREATE_REQUEST_ID_BASE            = 0x5001
-	WAYPOINT_DEFINE_ID                   = 0x1002
-	WAYPOINT_REQUEST_ID                  = 0x2002
-	AMBIENT_IN_CLOUD_DEFINE_ID           = 0x1003
-	AMBIENT_IN_CLOUD_REQUEST_ID          = 0x2003
-	AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID    = 0x1004
-	AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID   = 0x2004
+	WEATHER_REQUEST_ID_BASE            = 0x3001
+	CLOUD_STATE_REQUEST_ID_BASE        = 0x4001
+	AI_CREATE_REQUEST_ID_BASE          = 0x5001
+	WAYPOINT_DEFINE_ID                 = 0x1002
+	WAYPOINT_REQUEST_ID                = 0x2002
+	AMBIENT_IN_CLOUD_DEFINE_ID         = 0x1003
+	AMBIENT_IN_CLOUD_REQUEST_ID        = 0x2003
+	AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID  = 0x1004
+	AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID = 0x2004
 )
 
 // CreateAIObject creates a simulated AI object and returns its simObjectId.
@@ -264,7 +264,7 @@ func (client *Client) CreateAIObject(containerTitle string, initPos SIMCONNECT_D
 	defer connection.Close()
 
 	requestID := uint32(AI_CREATE_REQUEST_ID_BASE)
-	if err := connection.CreateSimulatedObject(containerTitle, initPos, requestID); err != nil {
+	if err := connection.CreateNonATCAircraft(containerTitle, "TEST", initPos, requestID); err != nil {
 		return 0, err
 	}
 

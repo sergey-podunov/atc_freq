@@ -139,21 +139,24 @@ func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]Clou
 	//coord := coords[cleanedWaypoints[0]]
 
 	coord := Coordinates{
+		// gate c 16 parking
 		//initial 52.362500, 13.517833
 		//10 meters west 52.362500, 13.517686
+		//Lat: 52.362500,
+		//Lon: 13.517686,
 		Lat: 52.362500,
-		Lon: 13.517686,
+		Lon: 13.517833,
 	}
 
 	initposition := SIMCONNECT_DATA_INITPOSITION{
 		Latitude:  coord.Lat,
 		Longitude: coord.Lon,
-		Altitude:  0,
+		Altitude:  2100,
 		Pitch:     0,
 		Bank:      0,
-		Heading:   0,
-		OnGround:  1,
-		Airspeed:  0,
+		Heading:   240,
+		OnGround:  0,
+		Airspeed:  100,
 	}
 
 	fmt.Println("Creating AI object...")
@@ -163,8 +166,10 @@ func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]Clou
 	}
 	fmt.Printf("AI object created with ID %d\n", simObjectId)
 
+	time.Sleep(5 * time.Second)
+
 	fmt.Println("Getting ambient cloud state...")
-	inCloud, err := s.client.GetAmbientInCloud(clientTimeout * 100)
+	inCloud, err := s.client.GetAmbientInCloudForObject(simObjectId, clientTimeout*100)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ambient in cloud: %w", err)
 	}
