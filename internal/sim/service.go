@@ -68,7 +68,7 @@ func (s *Service) GetCloudDensity(waypoints []string) (map[string][]CloudDensity
 	if err != nil {
 		return nil, fmt.Errorf("failed to get waypoint coordinates: %w", err)
 	}
-	fmt.Printf("Coordinates retrieved: %s\n", coords)
+	fmt.Printf("Coordinates retrieved: %+v\n", coords)
 
 	fmt.Println("Getting ambient cloud state...")
 	inCloud, err := s.client.GetAmbientInCloud(clientTimeout * 100)

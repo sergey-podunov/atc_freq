@@ -182,13 +182,13 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 }
 
 const (
-	WEATHER_REQUEST_ID_BASE       = 0x3001
-	CLOUD_STATE_REQUEST_ID_BASE   = 0x4001
-	AI_CREATE_REQUEST_ID_BASE     = 0x5001
-	WAYPOINT_DEFINE_ID            = 0x1002
-	WAYPOINT_REQUEST_ID           = 0x2002
-	AMBIENT_IN_CLOUD_DEFINE_ID    = 0x1003
-	AMBIENT_IN_CLOUD_REQUEST_ID   = 0x2003
+	WEATHER_REQUEST_ID_BASE     = 0x3001
+	CLOUD_STATE_REQUEST_ID_BASE = 0x4001
+	AI_CREATE_REQUEST_ID_BASE   = 0x5001
+	WAYPOINT_DEFINE_ID          = 0x1002
+	WAYPOINT_REQUEST_ID         = 0x2002
+	AMBIENT_IN_CLOUD_DEFINE_ID  = 0x1003
+	AMBIENT_IN_CLOUD_REQUEST_ID = 0x2003
 )
 
 // CreateAIObject creates a simulated AI object and returns its simObjectId.
@@ -516,7 +516,7 @@ func (client *Client) GetAmbientInCloud(timeout time.Duration) (bool, error) {
 	err = connection.RequestDataOnSimObjectType(
 		AMBIENT_IN_CLOUD_REQUEST_ID,
 		AMBIENT_IN_CLOUD_DEFINE_ID,
-		0, // radius (0 = user aircraft only)
+		100, // radius in meters, 20_000 max (0 = user aircraft only)
 		SIMCONNECT_SIMOBJECT_TYPE_USER,
 	)
 	if err != nil {
@@ -537,7 +537,7 @@ func (client *Client) GetAmbientInCloud(timeout time.Duration) (bool, error) {
 			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
 			return false, fmt.Errorf("connection exception received: %d (sendID: %d, index: %d)",
 				exception.DwException, exception.DwSendID, exception.DwIndex)
-		case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
+		case SIMCONNECT_RECV_ID_SIMOBJECT_DATA, SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE:
 			simData := (*SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
 			if simData.DwRequestID != AMBIENT_IN_CLOUD_REQUEST_ID {
 				continue
