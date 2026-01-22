@@ -117,6 +117,77 @@ func (s *Service) GetCloudDensity(waypoints []string) (map[string][]CloudDensity
 	return result, nil
 }
 
+// GetCloudDensityAtCoords retrieves cloud density at coords
+func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]CloudDensity, error) {
+	if len(waypoints) == 0 {
+		return nil, fmt.Errorf("no waypoints provided")
+	}
+
+	cleanedWaypoints := cleanWaypoints(waypoints)
+	if len(cleanedWaypoints) == 0 {
+		return nil, fmt.Errorf("no valid waypoints provided")
+	}
+
+	// Get coordinates for all waypoints
+	fmt.Printf("Getting coordinates for %d waypoints...\n", len(cleanedWaypoints))
+	coords, err := s.client.GetWaypointCoordinates(cleanedWaypoints, clientTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get waypoint coordinates: %w", err)
+	}
+	fmt.Printf("Coordinates retrieved: %+v\n", coords)
+
+	coord := coords[cleanedWaypoints[0]]
+
+	initposition := SIMCONNECT_DATA_INITPOSITION{
+		Latitude:  coord.Lat,
+		Longitude: coord.Lon,
+		Altitude:  0,
+		Pitch:     0,
+		Bank:      0,
+		Heading:   0,
+		OnGround:  1,
+		Airspeed:  0,
+	}
+
+	fmt.Println("Creating AI object...")
+	simObjectId, err := s.client.CreateAIObject("someTitle", initposition, clientTimeout*100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AI object: %w", err)
+	}
+	fmt.Printf("AI object created with ID %d\n", simObjectId)
+
+	fmt.Println("Getting ambient cloud state...")
+	inCloud, err := s.client.GetAmbientInCloud(clientTimeout * 100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ambient in cloud: %w", err)
+	}
+
+	// Get cloud density for each waypoint at all altitude layers (0-10000 feet, 500 feet step)
+	result := make(map[string][]CloudDensity)
+	var cloudDensity CloudDensity
+	if inCloud {
+		cloudDensity = CloudDensity{
+			Coverage:   "OVERCAST",
+			Value:      255,
+			MinAlt:     3000,
+			MaxAlt:     3500,
+			Percentage: 100,
+		}
+	} else {
+		cloudDensity = CloudDensity{
+			Coverage:   "CLR",
+			Value:      0,
+			MinAlt:     3000,
+			MaxAlt:     3500,
+			Percentage: 0,
+		}
+	}
+
+	result[cleanedWaypoints[0]] = append(result[cleanedWaypoints[0]], cloudDensity)
+
+	return result, nil
+}
+
 func cleanWaypoints(waypoints []string) []string {
 	cleaned := make([]string, 0, len(waypoints))
 	for _, wp := range waypoints {
