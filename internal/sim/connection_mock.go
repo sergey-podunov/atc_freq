@@ -47,6 +47,11 @@ func (m *MockConnection) RequestDataOnSimObjectType(requestID, defineID uint32, 
 	return args.Error(0)
 }
 
+func (m *MockConnection) RequestDataOnSimObject(requestID, defineID, objectID, period uint32) error {
+	args := m.Called(requestID, defineID, objectID, period)
+	return args.Error(0)
+}
+
 func (m *MockConnection) CreateSimulatedObject(containerTitle string, initPos SIMCONNECT_DATA_INITPOSITION, requestID uint32) error {
 	args := m.Called(containerTitle, initPos, requestID)
 	return args.Error(0)

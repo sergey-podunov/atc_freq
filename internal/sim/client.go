@@ -238,13 +238,15 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 }
 
 const (
-	WEATHER_REQUEST_ID_BASE     = 0x3001
-	CLOUD_STATE_REQUEST_ID_BASE = 0x4001
-	AI_CREATE_REQUEST_ID_BASE   = 0x5001
-	WAYPOINT_DEFINE_ID          = 0x1002
-	WAYPOINT_REQUEST_ID         = 0x2002
-	AMBIENT_IN_CLOUD_DEFINE_ID  = 0x1003
-	AMBIENT_IN_CLOUD_REQUEST_ID = 0x2003
+	WEATHER_REQUEST_ID_BASE              = 0x3001
+	CLOUD_STATE_REQUEST_ID_BASE          = 0x4001
+	AI_CREATE_REQUEST_ID_BASE            = 0x5001
+	WAYPOINT_DEFINE_ID                   = 0x1002
+	WAYPOINT_REQUEST_ID                  = 0x2002
+	AMBIENT_IN_CLOUD_DEFINE_ID           = 0x1003
+	AMBIENT_IN_CLOUD_REQUEST_ID          = 0x2003
+	AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID    = 0x1004
+	AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID   = 0x2004
 )
 
 // CreateAIObject creates a simulated AI object and returns its simObjectId.
@@ -608,6 +610,67 @@ func (client *Client) GetAmbientInCloud(timeout time.Duration) (bool, error) {
 	}
 
 	return false, fmt.Errorf("timeout waiting for ambient in cloud response")
+}
+
+// GetAmbientInCloudForObject returns whether a specific sim object is currently inside a cloud
+func (client *Client) GetAmbientInCloudForObject(objectID uint32, timeout time.Duration) (bool, error) {
+	connection := client.simConnection
+	err := connection.Open("go-ambient-cloud-object-client")
+	if err != nil {
+		return false, err
+	}
+	defer connection.Close()
+
+	// Define the data we want: AMBIENT IN CLOUD returns a bool (0 or 1)
+	err = connection.AddToDataDefinition(
+		AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID,
+		"AMBIENT IN CLOUD",
+		"Bool",
+		SIMCONNECT_DATATYPE_INT32,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to add data definition: %w", err)
+	}
+
+	// Request data from the specified sim object
+	err = connection.RequestDataOnSimObject(
+		AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID,
+		AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID,
+		objectID,
+		SIMCONNECT_PERIOD_ONCE,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to request data: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return false, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
+			simData := (*SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
+			if simData.DwRequestID != AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID {
+				continue
+			}
+
+			// Extract the int32 value from the data
+			dataPtr := unsafe.Pointer(&simData.DwData)
+			inCloud := *(*int32)(dataPtr)
+			return inCloud != 0, nil
+		}
+	}
+
+	return false, fmt.Errorf("timeout waiting for ambient in cloud response for object %d", objectID)
 }
 
 // parseMetar parses a METAR string and extracts visibility and cloud layers

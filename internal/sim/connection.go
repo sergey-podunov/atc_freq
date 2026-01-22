@@ -20,16 +20,17 @@ const (
 type DllConnection struct {
 	dll *windows.DLL
 
-	open                        *windows.Proc
-	close                       *windows.Proc
-	addToFacilityDefinition     *windows.Proc
-	addToDataDefinition         *windows.Proc
-	requestFacilityData         *windows.Proc
-	requestWeatherObservation   *windows.Proc
-	requestCloudState           *windows.Proc
-	requestDataOnSimObjectType  *windows.Proc
-	createSimulatedObject       *windows.Proc
-	getNextDispatch             *windows.Proc
+	open                       *windows.Proc
+	close                      *windows.Proc
+	addToFacilityDefinition    *windows.Proc
+	addToDataDefinition        *windows.Proc
+	requestFacilityData        *windows.Proc
+	requestWeatherObservation  *windows.Proc
+	requestCloudState          *windows.Proc
+	requestDataOnSimObjectType *windows.Proc
+	requestDataOnSimObject     *windows.Proc
+	createSimulatedObject      *windows.Proc
+	getNextDispatch            *windows.Proc
 
 	handler uintptr
 }
@@ -81,6 +82,10 @@ func NewConnection() (*DllConnection, error) {
 	if err != nil {
 		return nil, err
 	}
+	reqDataOnSimObject, err := mustProc("SimConnect_RequestDataOnSimObject")
+	if err != nil {
+		return nil, err
+	}
 	createSimObject, err := mustProc("SimConnect_AICreateSimulatedObject")
 	if err != nil {
 		return nil, err
@@ -101,6 +106,7 @@ func NewConnection() (*DllConnection, error) {
 		requestWeatherObservation:  reqWeather,
 		requestCloudState:          reqCloudState,
 		requestDataOnSimObjectType: reqDataOnSimObjectType,
+		requestDataOnSimObject:     reqDataOnSimObject,
 		createSimulatedObject:      createSimObject,
 		getNextDispatch:            getDisp,
 	}, nil
@@ -245,6 +251,24 @@ func (connection *DllConnection) RequestDataOnSimObjectType(requestID, defineID 
 	)
 	if int32(handlerResult) != S_OK {
 		return fmt.Errorf("RequestDataOnSimObjectType failed HRESULT=0x%08X", uint32(handlerResult))
+	}
+	return nil
+}
+
+func (connection *DllConnection) RequestDataOnSimObject(requestID, defineID, objectID, period uint32) error {
+	handlerResult, _, _ := connection.requestDataOnSimObject.Call(
+		connection.handler,
+		uintptr(requestID),
+		uintptr(defineID),
+		uintptr(objectID),
+		uintptr(period),
+		0, // flags
+		0, // origin
+		0, // interval
+		0, // limit
+	)
+	if int32(handlerResult) != S_OK {
+		return fmt.Errorf("RequestDataOnSimObject failed HRESULT=0x%08X", uint32(handlerResult))
 	}
 	return nil
 }
