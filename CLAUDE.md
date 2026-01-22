@@ -113,3 +113,5 @@ The agent reports success/failure for each step and suggests fixes for any issue
 
 ## Misc
 Don't edit defs_generated.go directly. When some new consts from SimConnect.h are needed — add them using defs.go.
+
+Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
