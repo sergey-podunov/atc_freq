@@ -247,6 +247,8 @@ const (
 	AMBIENT_IN_CLOUD_REQUEST_ID        = 0x2003
 	AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID  = 0x1004
 	AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID = 0x2004
+	AMBIENT_WIND_DIR_DEFINE_ID         = 0x1005
+	AMBIENT_WIND_DIR_REQUEST_ID        = 0x2005
 )
 
 // CreateAIObject creates a simulated AI object and returns its simObjectId.
@@ -671,6 +673,67 @@ func (client *Client) GetAmbientInCloudForObject(objectID uint32, timeout time.D
 	}
 
 	return false, fmt.Errorf("timeout waiting for ambient in cloud response for object %d", objectID)
+}
+
+// GetAmbientWindDirectionForObject returns the ambient wind direction in degrees for a specific sim object
+func (client *Client) GetAmbientWindDirectionForObject(objectID uint32, timeout time.Duration) (float64, error) {
+	connection := client.simConnection
+	err := connection.Open("go-ambient-wind-dir-client")
+	if err != nil {
+		return 0, err
+	}
+	defer connection.Close()
+
+	// Define the data we want: AMBIENT WIND DIRECTION returns degrees
+	err = connection.AddToDataDefinition(
+		AMBIENT_WIND_DIR_DEFINE_ID,
+		"AMBIENT WIND DIRECTION",
+		"Degrees",
+		SIMCONNECT_DATATYPE_FLOAT64,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to add data definition: %w", err)
+	}
+
+	// Request data from the specified sim object
+	err = connection.RequestDataOnSimObject(
+		AMBIENT_WIND_DIR_REQUEST_ID,
+		AMBIENT_WIND_DIR_DEFINE_ID,
+		objectID,
+		SIMCONNECT_PERIOD_ONCE,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to request data: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return 0, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
+			simData := (*SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
+			if simData.DwRequestID != AMBIENT_WIND_DIR_REQUEST_ID {
+				continue
+			}
+
+			// Extract the float64 value from the data
+			dataPtr := unsafe.Pointer(&simData.DwData)
+			windDirection := *(*float64)(dataPtr)
+			return windDirection, nil
+		}
+	}
+
+	return 0, fmt.Errorf("timeout waiting for ambient wind direction response for object %d", objectID)
 }
 
 // parseMetar parses a METAR string and extracts visibility and cloud layers

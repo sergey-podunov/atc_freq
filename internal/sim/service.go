@@ -151,10 +151,10 @@ func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]Clou
 	initposition := SIMCONNECT_DATA_INITPOSITION{
 		Latitude:  coord.Lat,
 		Longitude: coord.Lon,
-		Altitude:  2100,
+		Altitude:  3100,
 		Pitch:     0,
 		Bank:      0,
-		Heading:   240,
+		Heading:   210,
 		OnGround:  0,
 		Airspeed:  100,
 	}
@@ -169,15 +169,16 @@ func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]Clou
 	time.Sleep(5 * time.Second)
 
 	fmt.Println("Getting ambient cloud state...")
-	inCloud, err := s.client.GetAmbientInCloudForObject(simObjectId, clientTimeout*100)
+	windDirection, err := s.client.GetAmbientWindDirectionForObject(simObjectId, clientTimeout*100)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ambient in cloud: %w", err)
 	}
+	fmt.Printf("Wind direction: %+v\n", windDirection)
 
 	// Get cloud density for each waypoint at all altitude layers (0-10000 feet, 500 feet step)
 	result := make(map[string][]CloudDensity)
 	var cloudDensity CloudDensity
-	if inCloud {
+	/*if inCloud {
 		cloudDensity = CloudDensity{
 			Coverage:   "OVERCAST",
 			Value:      255,
@@ -185,15 +186,15 @@ func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]Clou
 			MaxAlt:     3500,
 			Percentage: 100,
 		}
-	} else {
-		cloudDensity = CloudDensity{
-			Coverage:   "CLR",
-			Value:      0,
-			MinAlt:     3000,
-			MaxAlt:     3500,
-			Percentage: 0,
-		}
+	} else {*/
+	cloudDensity = CloudDensity{
+		Coverage:   "CLR",
+		Value:      0,
+		MinAlt:     3000,
+		MaxAlt:     3500,
+		Percentage: 0,
 	}
+	//}
 
 	result[cleanedWaypoints[0]] = append(result[cleanedWaypoints[0]], cloudDensity)
 
