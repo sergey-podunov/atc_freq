@@ -3,6 +3,8 @@ package testutil
 import (
 	"atc_freq/internal/sim"
 	"unsafe"
+
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 )
 
 // FacilityDataBuffer is a struct that holds both the header and inline data
@@ -20,13 +22,13 @@ type FacilityDataBuffer struct {
 }
 
 // CreateFacilityDataResponse creates a mock SIMCONNECT_RECV for facility data
-func CreateFacilityDataResponse(freqType int32, frequency int32, name string) *sim.SIMCONNECT_RECV {
+func CreateFacilityDataResponse(freqType int32, frequency int32, name string) *simconnect.SIMCONNECT_RECV {
 	var nameBytes [64]byte
 	copy(nameBytes[:], name)
 
 	buf := &FacilityDataBuffer{
 		UserRequestId: sim.REQUEST_ID,
-		Type:          sim.SIMCONNECT_FACILITY_DATA_FREQUENCY,
+		Type:          simconnect.SIMCONNECT_FACILITY_DATA_FREQUENCY,
 		Data: sim.FACILITY_FREQUENCY_DATA{
 			TYPE:      freqType,
 			FREQUENCY: frequency,
@@ -35,20 +37,20 @@ func CreateFacilityDataResponse(freqType int32, frequency int32, name string) *s
 	}
 
 	// Set DwID in the header (offset 8 bytes: DwSize(4) + DwVersion(4))
-	*(*uint32)(unsafe.Pointer(&buf.Pad_cgo_0[8])) = sim.SIMCONNECT_RECV_ID_FACILITY_DATA
+	*(*uint32)(unsafe.Pointer(&buf.Pad_cgo_0[8])) = simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA
 
-	return (*sim.SIMCONNECT_RECV)(unsafe.Pointer(buf))
+	return (*simconnect.SIMCONNECT_RECV)(unsafe.Pointer(buf))
 }
 
 // CreateFacilityDataEndResponse creates a mock SIMCONNECT_RECV for facility data end
-func CreateFacilityDataEndResponse() *sim.SIMCONNECT_RECV {
-	endData := &sim.SIMCONNECT_RECV_FACILITY_DATA_END{
+func CreateFacilityDataEndResponse() *simconnect.SIMCONNECT_RECV {
+	endData := &simconnect.SIMCONNECT_RECV_FACILITY_DATA_END{
 		RequestId: sim.REQUEST_ID,
 	}
 
 	// The Pad_cgo_0 [12]byte contains the SIMCONNECT_RECV header
 	// Set DwID in the header (offset 8 bytes: DwSize(4) + DwVersion(4))
-	*(*uint32)(unsafe.Pointer(&endData.Pad_cgo_0[8])) = sim.SIMCONNECT_RECV_ID_FACILITY_DATA_END
+	*(*uint32)(unsafe.Pointer(&endData.Pad_cgo_0[8])) = simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA_END
 
-	return (*sim.SIMCONNECT_RECV)(unsafe.Pointer(endData))
+	return (*simconnect.SIMCONNECT_RECV)(unsafe.Pointer(endData))
 }

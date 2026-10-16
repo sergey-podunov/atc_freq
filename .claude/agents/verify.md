@@ -11,9 +11,8 @@ You are a verification agent that checks if code changes are valid by running bu
 
 When invoked, perform the following steps in order:
 
-1. **Generate definitions** - Run `make generate` to ensure Go definitions from SimConnect.h are up to date
-2. **Build** - Run `go build ./...` to verify the code compiles
-3. **Run tests** - Run `go test ./internal/...` to execute all tests
+1. **Build** - Run `go build ./...` to verify the code compiles
+2. **Run tests** - Run `go test ./internal/...` to execute all tests
 
 ## Reporting
 
@@ -27,7 +26,6 @@ After running all checks, provide a summary:
 ### On Success:
 ```
 Verification passed:
-- Generate: OK
 - Build: OK
 - Tests: OK (3 packages)
 ```
@@ -35,7 +33,6 @@ Verification passed:
 ### On Failure:
 ```
 Verification FAILED:
-- Generate: OK
 - Build: FAILED
   Error: ./internal/sim/client.go:123: undefined: SomeFunction
 

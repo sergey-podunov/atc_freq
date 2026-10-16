@@ -27,7 +27,7 @@ _obj/
 *.so
 .output*.txt
 assets*.txt
-/internal/sim/defs_generated.go
+
 
 # Wails
 /wails/frontend/node_modules/
