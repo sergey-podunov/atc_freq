@@ -3,6 +3,8 @@ package app
 import (
 	"atc_freq/internal/sim"
 	"context"
+
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 )
 
 type App struct {
@@ -10,7 +12,7 @@ type App struct {
 	simService *sim.Service
 }
 
-func NewApp(connection sim.Connection) *App {
+func NewApp(connection simconnect.Connection) *App {
 	client := sim.NewClient(connection)
 
 	return &App{

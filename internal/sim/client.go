@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 )
 
 type FACILITY_FREQUENCY_DATA struct {
@@ -71,66 +73,16 @@ var freqTypeMap = map[int32]string{
 	15: "GCO",
 }
 
-var exceptionNameMap = map[uint32]string{
-	SIMCONNECT_EXCEPTION_NONE:                              "NONE",
-	SIMCONNECT_EXCEPTION_ERROR:                             "ERROR",
-	SIMCONNECT_EXCEPTION_SIZE_MISMATCH:                     "SIZE_MISMATCH",
-	SIMCONNECT_EXCEPTION_UNRECOGNIZED_ID:                   "UNRECOGNIZED_ID",
-	SIMCONNECT_EXCEPTION_UNOPENED:                          "UNOPENED",
-	SIMCONNECT_EXCEPTION_VERSION_MISMATCH:                  "VERSION_MISMATCH",
-	SIMCONNECT_EXCEPTION_TOO_MANY_GROUPS:                   "TOO_MANY_GROUPS",
-	SIMCONNECT_EXCEPTION_NAME_UNRECOGNIZED:                 "NAME_UNRECOGNIZED",
-	SIMCONNECT_EXCEPTION_TOO_MANY_EVENT_NAMES:              "TOO_MANY_EVENT_NAMES",
-	SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE:                "EVENT_ID_DUPLICATE",
-	SIMCONNECT_EXCEPTION_TOO_MANY_MAPS:                     "TOO_MANY_MAPS",
-	SIMCONNECT_EXCEPTION_TOO_MANY_OBJECTS:                  "TOO_MANY_OBJECTS",
-	SIMCONNECT_EXCEPTION_TOO_MANY_REQUESTS:                 "TOO_MANY_REQUESTS",
-	SIMCONNECT_EXCEPTION_WEATHER_INVALID_PORT:              "WEATHER_INVALID_PORT",
-	SIMCONNECT_EXCEPTION_WEATHER_INVALID_METAR:             "WEATHER_INVALID_METAR",
-	SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_GET_OBSERVATION: "WEATHER_UNABLE_TO_GET_OBSERVATION",
-	SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_CREATE_STATION:  "WEATHER_UNABLE_TO_CREATE_STATION",
-	SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_REMOVE_STATION:  "WEATHER_UNABLE_TO_REMOVE_STATION",
-	SIMCONNECT_EXCEPTION_INVALID_DATA_TYPE:                 "INVALID_DATA_TYPE",
-	SIMCONNECT_EXCEPTION_INVALID_DATA_SIZE:                 "INVALID_DATA_SIZE",
-	SIMCONNECT_EXCEPTION_DATA_ERROR:                        "DATA_ERROR",
-	SIMCONNECT_EXCEPTION_INVALID_ARRAY:                     "INVALID_ARRAY",
-	SIMCONNECT_EXCEPTION_CREATE_OBJECT_FAILED:              "CREATE_OBJECT_FAILED",
-	SIMCONNECT_EXCEPTION_LOAD_FLIGHTPLAN_FAILED:            "LOAD_FLIGHTPLAN_FAILED",
-	SIMCONNECT_EXCEPTION_OPERATION_INVALID_FOR_OBJECT_TYPE: "OPERATION_INVALID_FOR_OBJECT_TYPE",
-	SIMCONNECT_EXCEPTION_ILLEGAL_OPERATION:                 "ILLEGAL_OPERATION",
-	SIMCONNECT_EXCEPTION_ALREADY_SUBSCRIBED:                "ALREADY_SUBSCRIBED",
-	SIMCONNECT_EXCEPTION_INVALID_ENUM:                      "INVALID_ENUM",
-	SIMCONNECT_EXCEPTION_DEFINITION_ERROR:                  "DEFINITION_ERROR",
-	SIMCONNECT_EXCEPTION_DUPLICATE_ID:                      "DUPLICATE_ID",
-	SIMCONNECT_EXCEPTION_DATUM_ID:                          "DATUM_ID",
-	SIMCONNECT_EXCEPTION_OUT_OF_BOUNDS:                     "OUT_OF_BOUNDS",
-	SIMCONNECT_EXCEPTION_ALREADY_CREATED:                   "ALREADY_CREATED",
-	SIMCONNECT_EXCEPTION_OBJECT_OUTSIDE_REALITY_BUBBLE:     "OBJECT_OUTSIDE_REALITY_BUBBLE",
-	SIMCONNECT_EXCEPTION_OBJECT_CONTAINER:                  "OBJECT_CONTAINER",
-	SIMCONNECT_EXCEPTION_OBJECT_AI:                         "OBJECT_AI",
-	SIMCONNECT_EXCEPTION_OBJECT_ATC:                        "OBJECT_ATC",
-	SIMCONNECT_EXCEPTION_OBJECT_SCHEDULE:                   "OBJECT_SCHEDULE",
-	SIMCONNECT_EXCEPTION_JETWAY_DATA:                       "JETWAY_DATA",
-	SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND:                  "ACTION_NOT_FOUND",
-	SIMCONNECT_EXCEPTION_NOT_AN_ACTION:                     "NOT_AN_ACTION",
-	SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS:           "INCORRECT_ACTION_PARAMS",
-	SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED:            "GET_INPUT_EVENT_FAILED",
-	SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:            "SET_INPUT_EVENT_FAILED",
-}
-
-// ExceptionName returns a human-readable name for a SimConnect exception ID
-func ExceptionName(exceptionID uint32) string {
-	if name, ok := exceptionNameMap[exceptionID]; ok {
-		return name
-	}
-	return fmt.Sprintf("UNKNOWN_%d", exceptionID)
-}
+const (
+	DEFINE_ID  = 0x1001
+	REQUEST_ID = 0x2001
+)
 
 type Client struct {
-	simConnection Connection
+	simConnection simconnect.Connection
 }
 
-func NewClient(conn Connection) *Client {
+func NewClient(conn simconnect.Connection) *Client {
 	return &Client{simConnection: conn}
 }
 
@@ -188,18 +140,18 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 		fmt.Printf("dispatch: %#v\n", ppData)
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
-			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
 			return nil, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
-				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
-		case SIMCONNECT_RECV_ID_FACILITY_DATA:
-			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA:
+			facData := (*simconnect.SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
 
 			if facData.UserRequestId != REQUEST_ID {
 				continue
 			}
 
-			if facData.Type != SIMCONNECT_FACILITY_DATA_FREQUENCY {
+			if facData.Type != simconnect.SIMCONNECT_FACILITY_DATA_FREQUENCY {
 				continue
 			}
 
@@ -209,7 +161,7 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 			dataPtr := unsafe.Pointer(&facData.Data)
 			freq := (*FACILITY_FREQUENCY_DATA)(dataPtr)
 
-			name := helpers.TrimCString(freq.NAME[:])
+			name := simconnect.TrimCString(freq.NAME[:])
 			hz := int(freq.FREQUENCY)
 			tcode := freq.TYPE
 			tname := freqTypeMap[tcode]
@@ -225,9 +177,9 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 				MHz:      helpers.HzToMHz(hz),
 			})
 
-		case SIMCONNECT_RECV_ID_FACILITY_DATA_END:
+		case simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA_END:
 			fmt.Println("got facility data end")
-			end := (*SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
+			end := (*simconnect.SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
 			if end.RequestId == REQUEST_ID {
 				return out, nil
 			}
@@ -252,7 +204,7 @@ const (
 )
 
 // CreateAIObject creates a simulated AI object and returns its simObjectId.
-func (client *Client) CreateAIObject(containerTitle string, initPos SIMCONNECT_DATA_INITPOSITION, timeout time.Duration) (uint32, error) {
+func (client *Client) CreateAIObject(containerTitle string, initPos simconnect.SIMCONNECT_DATA_INITPOSITION, timeout time.Duration) (uint32, error) {
 	containerTitle = strings.TrimSpace(containerTitle)
 	if containerTitle == "" {
 		return 0, fmt.Errorf("container title is empty")
@@ -279,12 +231,12 @@ func (client *Client) CreateAIObject(containerTitle string, initPos SIMCONNECT_D
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
-			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
 			return 0, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
-				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
-		case SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID:
-			assigned := (*SIMCONNECT_RECV_ASSIGNED_OBJECT_ID)(unsafe.Pointer(ppData))
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID:
+			assigned := (*simconnect.SIMCONNECT_RECV_ASSIGNED_OBJECT_ID)(unsafe.Pointer(ppData))
 			if assigned.DwRequestID != requestID {
 				continue
 			}
@@ -336,10 +288,10 @@ func (client *Client) GetWeather(waypoints []string, timeout time.Duration) (map
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
 			return nil, fmt.Errorf("connection exception received, ID: %d", ppData.DwID)
-		case SIMCONNECT_RECV_ID_WEATHER_OBSERVATION:
-			weatherData := (*SIMCONNECT_RECV_WEATHER_OBSERVATION)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_WEATHER_OBSERVATION:
+			weatherData := (*simconnect.SIMCONNECT_RECV_WEATHER_OBSERVATION)(unsafe.Pointer(ppData))
 
 			wp, exists := requestIDToWaypoint[weatherData.DwRequestID]
 			if !exists {
@@ -348,7 +300,7 @@ func (client *Client) GetWeather(waypoints []string, timeout time.Duration) (map
 
 			// Extract METAR string - starts at SzMetar field and goes to end of struct
 			metarPtr := unsafe.Pointer(&weatherData.SzMetar[0])
-			metar := helpers.TrimCString((*[512]byte)(metarPtr)[:])
+			metar := simconnect.TrimCString((*[512]byte)(metarPtr)[:])
 
 			weather := parseMetar(wp, metar)
 			result[wp] = weather
@@ -418,10 +370,10 @@ func (client *Client) GetWaypointCoordinates(waypoints []string, timeout time.Du
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
 			return nil, fmt.Errorf("connection exception during facility request")
-		case SIMCONNECT_RECV_ID_FACILITY_DATA:
-			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA:
+			facData := (*simconnect.SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
 			wp, exists := requestIDToWaypoint[facData.UserRequestId]
 			if !exists {
 				continue
@@ -438,8 +390,8 @@ func (client *Client) GetWaypointCoordinates(waypoints []string, timeout time.Du
 				Lon: *lonPtr,
 			}
 
-		case SIMCONNECT_RECV_ID_FACILITY_DATA_END:
-			end := (*SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA_END:
+			end := (*simconnect.SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
 			if _, exists := requestIDToWaypoint[end.RequestId]; exists {
 				pendingRequests--
 			}
@@ -492,10 +444,10 @@ func (client *Client) GetCloudDensityByCoordinates(coords Coordinates, minAlt, m
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
 			return CloudDensity{}, fmt.Errorf("connection exception during cloud state request")
-		case SIMCONNECT_RECV_ID_CLOUD_STATE:
-			cloudData := (*SIMCONNECT_RECV_CLOUD_STATE)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_CLOUD_STATE:
+			cloudData := (*simconnect.SIMCONNECT_RECV_CLOUD_STATE)(unsafe.Pointer(ppData))
 			if cloudData.DwRequestID != requestID {
 				continue
 			}
@@ -567,7 +519,7 @@ func (client *Client) GetAmbientInCloud(timeout time.Duration) (bool, error) {
 		AMBIENT_IN_CLOUD_DEFINE_ID,
 		"AMBIENT IN CLOUD",
 		"Bool",
-		SIMCONNECT_DATATYPE_INT32,
+		simconnect.SIMCONNECT_DATATYPE_INT32,
 	)
 	if err != nil {
 		return false, fmt.Errorf("failed to add data definition: %w", err)
@@ -578,7 +530,7 @@ func (client *Client) GetAmbientInCloud(timeout time.Duration) (bool, error) {
 		AMBIENT_IN_CLOUD_REQUEST_ID,
 		AMBIENT_IN_CLOUD_DEFINE_ID,
 		100, // radius in meters, 20_000 max (0 = user aircraft only)
-		SIMCONNECT_SIMOBJECT_TYPE_USER,
+		simconnect.SIMCONNECT_SIMOBJECT_TYPE_USER,
 	)
 	if err != nil {
 		return false, fmt.Errorf("failed to request data: %w", err)
@@ -594,12 +546,12 @@ func (client *Client) GetAmbientInCloud(timeout time.Duration) (bool, error) {
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
-			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
 			return false, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
-				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
-		case SIMCONNECT_RECV_ID_SIMOBJECT_DATA, SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE:
-			simData := (*SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_SIMOBJECT_DATA, simconnect.SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE:
+			simData := (*simconnect.SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
 			if simData.DwRequestID != AMBIENT_IN_CLOUD_REQUEST_ID {
 				continue
 			}
@@ -628,7 +580,7 @@ func (client *Client) GetAmbientInCloudForObject(objectID uint32, timeout time.D
 		AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID,
 		"AMBIENT IN CLOUD",
 		"Bool",
-		SIMCONNECT_DATATYPE_INT32,
+		simconnect.SIMCONNECT_DATATYPE_INT32,
 	)
 	if err != nil {
 		return false, fmt.Errorf("failed to add data definition: %w", err)
@@ -639,7 +591,7 @@ func (client *Client) GetAmbientInCloudForObject(objectID uint32, timeout time.D
 		AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID,
 		AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID,
 		objectID,
-		SIMCONNECT_PERIOD_ONCE,
+		simconnect.SIMCONNECT_PERIOD_ONCE,
 	)
 	if err != nil {
 		return false, fmt.Errorf("failed to request data: %w", err)
@@ -655,12 +607,12 @@ func (client *Client) GetAmbientInCloudForObject(objectID uint32, timeout time.D
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
-			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
 			return false, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
-				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
-		case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
-			simData := (*SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
+			simData := (*simconnect.SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
 			if simData.DwRequestID != AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID {
 				continue
 			}
@@ -689,7 +641,7 @@ func (client *Client) GetAmbientWindDirectionForObject(objectID uint32, timeout 
 		AMBIENT_WIND_DIR_DEFINE_ID,
 		"AMBIENT WIND DIRECTION",
 		"Degrees",
-		SIMCONNECT_DATATYPE_FLOAT64,
+		simconnect.SIMCONNECT_DATATYPE_FLOAT64,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to add data definition: %w", err)
@@ -700,7 +652,7 @@ func (client *Client) GetAmbientWindDirectionForObject(objectID uint32, timeout 
 		AMBIENT_WIND_DIR_REQUEST_ID,
 		AMBIENT_WIND_DIR_DEFINE_ID,
 		objectID,
-		SIMCONNECT_PERIOD_ONCE,
+		simconnect.SIMCONNECT_PERIOD_ONCE,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to request data: %w", err)
@@ -716,12 +668,12 @@ func (client *Client) GetAmbientWindDirectionForObject(objectID uint32, timeout 
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
-			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
 			return 0, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
-				ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
-		case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
-			simData := (*SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
+			simData := (*simconnect.SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
 			if simData.DwRequestID != AMBIENT_WIND_DIR_REQUEST_ID {
 				continue
 			}

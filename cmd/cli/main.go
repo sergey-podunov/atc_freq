@@ -4,16 +4,16 @@ package main
 
 import (
 	"atc_freq/internal/app"
-	"atc_freq/internal/sim"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
-	connection, err := sim.NewConnection()
+	connection, err := simconnect.NewConnection()
 	if err != nil {
 		fmt.Printf("Can't create application: %v\n", err)
 		os.Exit(1)

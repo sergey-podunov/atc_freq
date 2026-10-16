@@ -6,6 +6,7 @@ import (
 	"atc_freq/internal/testutil"
 	"testing"
 
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,13 +14,13 @@ func TestApp_GetAirportFrequencies(t *testing.T) {
 	tests := []struct {
 		name          string
 		icao          string
-		mockSetup     func(*sim.MockConnection)
+		mockSetup     func(*simconnect.MockConnection)
 		expectedFreqs []sim.AirportFrequency
 	}{
 		{
 			name: "successful retrieval of frequencies",
 			icao: "KJFK",
-			mockSetup: func(m *sim.MockConnection) {
+			mockSetup: func(m *simconnect.MockConnection) {
 				// Expect Open call
 				m.On("Open", "go-freq-client").Return(nil).Once()
 
@@ -59,7 +60,7 @@ func TestApp_GetAirportFrequencies(t *testing.T) {
 		{
 			name: "empty icao",
 			icao: "",
-			mockSetup: func(m *sim.MockConnection) {
+			mockSetup: func(m *simconnect.MockConnection) {
 				// No expectations - should fail before any calls
 			},
 			expectedFreqs: nil,
@@ -68,7 +69,7 @@ func TestApp_GetAirportFrequencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockConn := new(sim.MockConnection)
+			mockConn := new(simconnect.MockConnection)
 			tt.mockSetup(mockConn)
 
 			application := app.NewApp(mockConn)

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 )
 
 const clientTimeout = 10 * time.Second
@@ -148,7 +150,7 @@ func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]Clou
 		Lon: 13.517833,
 	}
 
-	initposition := SIMCONNECT_DATA_INITPOSITION{
+	initposition := simconnect.SIMCONNECT_DATA_INITPOSITION{
 		Latitude:  coord.Lat,
 		Longitude: coord.Lon,
 		Altitude:  3100,
