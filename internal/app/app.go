@@ -3,6 +3,8 @@ package app
 import (
 	"atc_freq/internal/sim"
 	"context"
+
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 )
 
 type App struct {
@@ -10,7 +12,7 @@ type App struct {
 	simService *sim.Service
 }
 
-func NewApp(connection sim.Connection) *App {
+func NewApp(connection simconnect.Connection) *App {
 	client := sim.NewClient(connection)
 
 	return &App{
@@ -37,5 +39,5 @@ func (a *App) GetWeather(waypoints []string) (map[string]*sim.Weather, error) {
 // GetClouds returns weather information for the given waypoints
 // Implementation of SimConnect_WeatherRequestCloudState in MSFS202 SDK API is broken and always returns 0
 func (a *App) GetClouds(waypoints []string) (map[string][]sim.CloudDensity, error) {
-	return a.simService.GetCloudDensity(waypoints)
+	return a.simService.GetCloudDensityAtCoords(waypoints)
 }

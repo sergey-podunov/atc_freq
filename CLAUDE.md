@@ -9,10 +9,7 @@ ATC Frequency Finder is a Windows desktop application for Microsoft Flight Simul
 ## Build Commands
 
 ```bash
-# Generate Go definitions from SimConnect.h (required before build/test)
-make generate
-
-# Run tests (includes generate)
+# Run tests
 make test
 
 # Build Wails GUI application (outputs freq_app.exe)
@@ -21,7 +18,7 @@ make build
 # Build CLI application (outputs cli.exe)
 make build-cli
 
-# Full build (generate, test, build both apps)
+# Full build (test, build both apps)
 make all
 
 # Clean build artifacts
@@ -51,12 +48,12 @@ Service (internal/sim)     - Business logic, timeout handling, input validation
     ↓
 Client (internal/sim)      - SimConnect protocol implementation, data parsing
     ↓
-Connection (interface)     - DLL abstraction for SimConnect.dll
+Connection (msfs_connect)  - SimConnect.dll wrapper, separate module
 ```
 
 ### Key Components
 
-- **Connection interface** (`internal/sim/connection_interface.go`): Abstraction over SimConnect DLL calls. Has two implementations:
+- **Connection interface** (`simconnect.Connection` from `github.com/sergey-podunov/msfs_connect/simconnect`, lives in `../msfs_connect`): Abstraction over SimConnect DLL calls. Has two implementations:
   - `DllConnection` - Real SimConnect.dll calls via windows syscalls
   - `MockConnection` - For unit testing with testify/mock
 
@@ -71,8 +68,9 @@ Connection (interface)     - DLL abstraction for SimConnect.dll
 
 ### SimConnect Integration
 
-- Uses `go tool cgo -godefs` to generate Go struct definitions from SimConnect.h
-- `defs.go` contains cgo definitions (build tag: ignore), `defs_generated.go` contains generated Go types
+- The SimConnect layer (`Connection`, `DllConnection`, `MockConnection`, generated `SIMCONNECT_*` types and consts, `ExceptionName`, `CString`/`TrimCString`) lives in the separate module `msfs_connect` (`../msfs_connect`)
+- Local development uses the Go workspace `../go.work`, which points at both `atc_freq` and `msfs_connect`
+- Struct definitions are generated in `msfs_connect` (`make generate` there) from SimConnect.h
 - SimConnect.dll is loaded dynamically at runtime via `windows.LoadDLL`
 - DLL must be available in PATH or local directory (typically from MSFS SDK)
 
@@ -90,9 +88,26 @@ Tests use a mock connection (`MockConnection`) with testify/mock. Test helpers i
 
 - Windows only (uses windows syscalls and SimConnect.dll)
 - Go 1.25+
-- g++ compiler for cgo (SimConnect.h uses C++ features)
 - Microsoft Flight Simulator with SimConnect.dll
 - Wails CLI for GUI builds
 
+## Custom Agents
+
+### Verify Agent (`/verify`)
+
+Use the verify agent to check if your changes are valid before committing:
+
+```
+/verify
+```
+
+This agent will:
+1. Run `go build ./...` to verify compilation
+2. Run `go test ./internal/...` to execute tests
+
+The agent reports success/failure for each step and suggests fixes for any issues.
+
 ## Misc
-Don't edit defs_generated.go directly. When some new consts from SimConnect.h are needed — add them using defs.go.
+Don't edit defs_generated.go directly. When some new consts from SimConnect.h are needed — add them to `msfs_connect/simconnect/defs.go` and run `make generate` in `msfs_connect`.
+
+Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.

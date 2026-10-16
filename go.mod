@@ -3,10 +3,10 @@ module atc_freq
 go 1.25.5
 
 require (
+	github.com/sergey-podunov/msfs_connect v0.1.0
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/wailsapp/wails/v2 v2.11.0
-	golang.org/x/sys v0.30.0
 )
 
 require (
@@ -41,6 +41,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

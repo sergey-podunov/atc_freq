@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 )
 
 type FACILITY_FREQUENCY_DATA struct {
@@ -71,11 +73,16 @@ var freqTypeMap = map[int32]string{
 	15: "GCO",
 }
 
+const (
+	DEFINE_ID  = 0x1001
+	REQUEST_ID = 0x2001
+)
+
 type Client struct {
-	simConnection Connection
+	simConnection simconnect.Connection
 }
 
-func NewClient(conn Connection) *Client {
+func NewClient(conn simconnect.Connection) *Client {
 	return &Client{simConnection: conn}
 }
 
@@ -133,17 +140,18 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 		fmt.Printf("dispatch: %#v\n", ppData)
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
-			exception := (*SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
-			return nil, fmt.Errorf("connection exception received: %d (sendID: %d, index: %d)", exception.DwException, exception.DwSendID, exception.DwIndex)
-		case SIMCONNECT_RECV_ID_FACILITY_DATA:
-			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return nil, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA:
+			facData := (*simconnect.SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
 
 			if facData.UserRequestId != REQUEST_ID {
 				continue
 			}
 
-			if facData.Type != SIMCONNECT_FACILITY_DATA_FREQUENCY {
+			if facData.Type != simconnect.SIMCONNECT_FACILITY_DATA_FREQUENCY {
 				continue
 			}
 
@@ -153,7 +161,7 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 			dataPtr := unsafe.Pointer(&facData.Data)
 			freq := (*FACILITY_FREQUENCY_DATA)(dataPtr)
 
-			name := helpers.TrimCString(freq.NAME[:])
+			name := simconnect.TrimCString(freq.NAME[:])
 			hz := int(freq.FREQUENCY)
 			tcode := freq.TYPE
 			tname := freqTypeMap[tcode]
@@ -169,9 +177,9 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 				MHz:      helpers.HzToMHz(hz),
 			})
 
-		case SIMCONNECT_RECV_ID_FACILITY_DATA_END:
+		case simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA_END:
 			fmt.Println("got facility data end")
-			end := (*SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
+			end := (*simconnect.SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
 			if end.RequestId == REQUEST_ID {
 				return out, nil
 			}
@@ -182,11 +190,62 @@ func (client *Client) GetAirportFrequencies(icao string, timeout time.Duration) 
 }
 
 const (
-	WEATHER_REQUEST_ID_BASE     = 0x3001
-	CLOUD_STATE_REQUEST_ID_BASE = 0x4001
-	WAYPOINT_DEFINE_ID          = 0x1002
-	WAYPOINT_REQUEST_ID         = 0x2002
+	WEATHER_REQUEST_ID_BASE            = 0x3001
+	CLOUD_STATE_REQUEST_ID_BASE        = 0x4001
+	AI_CREATE_REQUEST_ID_BASE          = 0x5001
+	WAYPOINT_DEFINE_ID                 = 0x1002
+	WAYPOINT_REQUEST_ID                = 0x2002
+	AMBIENT_IN_CLOUD_DEFINE_ID         = 0x1003
+	AMBIENT_IN_CLOUD_REQUEST_ID        = 0x2003
+	AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID  = 0x1004
+	AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID = 0x2004
+	AMBIENT_WIND_DIR_DEFINE_ID         = 0x1005
+	AMBIENT_WIND_DIR_REQUEST_ID        = 0x2005
 )
+
+// CreateAIObject creates a simulated AI object and returns its simObjectId.
+func (client *Client) CreateAIObject(containerTitle string, initPos simconnect.SIMCONNECT_DATA_INITPOSITION, timeout time.Duration) (uint32, error) {
+	containerTitle = strings.TrimSpace(containerTitle)
+	if containerTitle == "" {
+		return 0, fmt.Errorf("container title is empty")
+	}
+
+	connection := client.simConnection
+	err := connection.Open("go-ai-object-client")
+	if err != nil {
+		return 0, err
+	}
+	defer connection.Close()
+
+	requestID := uint32(AI_CREATE_REQUEST_ID_BASE)
+	if err := connection.CreateNonATCAircraft(containerTitle, "TEST", initPos, requestID); err != nil {
+		return 0, err
+	}
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return 0, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID:
+			assigned := (*simconnect.SIMCONNECT_RECV_ASSIGNED_OBJECT_ID)(unsafe.Pointer(ppData))
+			if assigned.DwRequestID != requestID {
+				continue
+			}
+			return assigned.DwObjectID, nil
+		}
+	}
+
+	return 0, fmt.Errorf("timeout waiting for assigned object id")
+}
 
 // GetWeather retrieves weather information for the specified waypoints
 func (client *Client) GetWeather(waypoints []string, timeout time.Duration) (map[string]*Weather, error) {
@@ -229,10 +288,10 @@ func (client *Client) GetWeather(waypoints []string, timeout time.Duration) (map
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
 			return nil, fmt.Errorf("connection exception received, ID: %d", ppData.DwID)
-		case SIMCONNECT_RECV_ID_WEATHER_OBSERVATION:
-			weatherData := (*SIMCONNECT_RECV_WEATHER_OBSERVATION)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_WEATHER_OBSERVATION:
+			weatherData := (*simconnect.SIMCONNECT_RECV_WEATHER_OBSERVATION)(unsafe.Pointer(ppData))
 
 			wp, exists := requestIDToWaypoint[weatherData.DwRequestID]
 			if !exists {
@@ -241,7 +300,7 @@ func (client *Client) GetWeather(waypoints []string, timeout time.Duration) (map
 
 			// Extract METAR string - starts at SzMetar field and goes to end of struct
 			metarPtr := unsafe.Pointer(&weatherData.SzMetar[0])
-			metar := helpers.TrimCString((*[512]byte)(metarPtr)[:])
+			metar := simconnect.TrimCString((*[512]byte)(metarPtr)[:])
 
 			weather := parseMetar(wp, metar)
 			result[wp] = weather
@@ -311,10 +370,10 @@ func (client *Client) GetWaypointCoordinates(waypoints []string, timeout time.Du
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
 			return nil, fmt.Errorf("connection exception during facility request")
-		case SIMCONNECT_RECV_ID_FACILITY_DATA:
-			facData := (*SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA:
+			facData := (*simconnect.SIMCONNECT_RECV_FACILITY_DATA)(unsafe.Pointer(ppData))
 			wp, exists := requestIDToWaypoint[facData.UserRequestId]
 			if !exists {
 				continue
@@ -331,8 +390,8 @@ func (client *Client) GetWaypointCoordinates(waypoints []string, timeout time.Du
 				Lon: *lonPtr,
 			}
 
-		case SIMCONNECT_RECV_ID_FACILITY_DATA_END:
-			end := (*SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_FACILITY_DATA_END:
+			end := (*simconnect.SIMCONNECT_RECV_FACILITY_DATA_END)(unsafe.Pointer(ppData))
 			if _, exists := requestIDToWaypoint[end.RequestId]; exists {
 				pendingRequests--
 			}
@@ -385,10 +444,10 @@ func (client *Client) GetCloudDensityByCoordinates(coords Coordinates, minAlt, m
 		}
 
 		switch ppData.DwID {
-		case SIMCONNECT_RECV_ID_EXCEPTION:
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
 			return CloudDensity{}, fmt.Errorf("connection exception during cloud state request")
-		case SIMCONNECT_RECV_ID_CLOUD_STATE:
-			cloudData := (*SIMCONNECT_RECV_CLOUD_STATE)(unsafe.Pointer(ppData))
+		case simconnect.SIMCONNECT_RECV_ID_CLOUD_STATE:
+			cloudData := (*simconnect.SIMCONNECT_RECV_CLOUD_STATE)(unsafe.Pointer(ppData))
 			if cloudData.DwRequestID != requestID {
 				continue
 			}
@@ -444,6 +503,189 @@ func interpretCloudDensity(value byte) CloudDensity {
 		Percentage: percentage,
 		Coverage:   coverage,
 	}
+}
+
+// GetAmbientInCloud returns whether the user's aircraft is currently inside a cloud
+func (client *Client) GetAmbientInCloud(timeout time.Duration) (bool, error) {
+	connection := client.simConnection
+	err := connection.Open("go-ambient-cloud-client")
+	if err != nil {
+		return false, err
+	}
+	defer connection.Close()
+
+	// Define the data we want: AMBIENT IN CLOUD returns a bool (0 or 1)
+	err = connection.AddToDataDefinition(
+		AMBIENT_IN_CLOUD_DEFINE_ID,
+		"AMBIENT IN CLOUD",
+		"Bool",
+		simconnect.SIMCONNECT_DATATYPE_INT32,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to add data definition: %w", err)
+	}
+
+	// Request data from the user's aircraft
+	err = connection.RequestDataOnSimObjectType(
+		AMBIENT_IN_CLOUD_REQUEST_ID,
+		AMBIENT_IN_CLOUD_DEFINE_ID,
+		100, // radius in meters, 20_000 max (0 = user aircraft only)
+		simconnect.SIMCONNECT_SIMOBJECT_TYPE_USER,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to request data: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return false, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_SIMOBJECT_DATA, simconnect.SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE:
+			simData := (*simconnect.SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
+			if simData.DwRequestID != AMBIENT_IN_CLOUD_REQUEST_ID {
+				continue
+			}
+
+			// Extract the int32 value from the data
+			dataPtr := unsafe.Pointer(&simData.DwData)
+			inCloud := *(*int32)(dataPtr)
+			return inCloud != 0, nil
+		}
+	}
+
+	return false, fmt.Errorf("timeout waiting for ambient in cloud response")
+}
+
+// GetAmbientInCloudForObject returns whether a specific sim object is currently inside a cloud
+func (client *Client) GetAmbientInCloudForObject(objectID uint32, timeout time.Duration) (bool, error) {
+	connection := client.simConnection
+	err := connection.Open("go-ambient-cloud-object-client")
+	if err != nil {
+		return false, err
+	}
+	defer connection.Close()
+
+	// Define the data we want: AMBIENT IN CLOUD returns a bool (0 or 1)
+	err = connection.AddToDataDefinition(
+		AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID,
+		"AMBIENT IN CLOUD",
+		"Bool",
+		simconnect.SIMCONNECT_DATATYPE_INT32,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to add data definition: %w", err)
+	}
+
+	// Request data from the specified sim object
+	err = connection.RequestDataOnSimObject(
+		AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID,
+		AMBIENT_IN_CLOUD_OBJECT_DEFINE_ID,
+		objectID,
+		simconnect.SIMCONNECT_PERIOD_ONCE,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to request data: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return false, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
+			simData := (*simconnect.SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
+			if simData.DwRequestID != AMBIENT_IN_CLOUD_OBJECT_REQUEST_ID {
+				continue
+			}
+
+			// Extract the int32 value from the data
+			dataPtr := unsafe.Pointer(&simData.DwData)
+			inCloud := *(*int32)(dataPtr)
+			return inCloud != 0, nil
+		}
+	}
+
+	return false, fmt.Errorf("timeout waiting for ambient in cloud response for object %d", objectID)
+}
+
+// GetAmbientWindDirectionForObject returns the ambient wind direction in degrees for a specific sim object
+func (client *Client) GetAmbientWindDirectionForObject(objectID uint32, timeout time.Duration) (float64, error) {
+	connection := client.simConnection
+	err := connection.Open("go-ambient-wind-dir-client")
+	if err != nil {
+		return 0, err
+	}
+	defer connection.Close()
+
+	// Define the data we want: AMBIENT WIND DIRECTION returns degrees
+	err = connection.AddToDataDefinition(
+		AMBIENT_WIND_DIR_DEFINE_ID,
+		"AMBIENT WIND DIRECTION",
+		"Degrees",
+		simconnect.SIMCONNECT_DATATYPE_FLOAT64,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to add data definition: %w", err)
+	}
+
+	// Request data from the specified sim object
+	err = connection.RequestDataOnSimObject(
+		AMBIENT_WIND_DIR_REQUEST_ID,
+		AMBIENT_WIND_DIR_DEFINE_ID,
+		objectID,
+		simconnect.SIMCONNECT_PERIOD_ONCE,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to request data: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		ppData, ok := connection.GetNextDispatch()
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		switch ppData.DwID {
+		case simconnect.SIMCONNECT_RECV_ID_EXCEPTION:
+			exception := (*simconnect.SIMCONNECT_RECV_EXCEPTION)(unsafe.Pointer(ppData))
+			return 0, fmt.Errorf("connection exception: %s (%d) (sendID: %d, index: %d)",
+				simconnect.ExceptionName(exception.DwException), exception.DwException, exception.DwSendID, exception.DwIndex)
+		case simconnect.SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
+			simData := (*simconnect.SIMCONNECT_RECV_SIMOBJECT_DATA)(unsafe.Pointer(ppData))
+			if simData.DwRequestID != AMBIENT_WIND_DIR_REQUEST_ID {
+				continue
+			}
+
+			// Extract the float64 value from the data
+			dataPtr := unsafe.Pointer(&simData.DwData)
+			windDirection := *(*float64)(dataPtr)
+			return windDirection, nil
+		}
+	}
+
+	return 0, fmt.Errorf("timeout waiting for ambient wind direction response for object %d", objectID)
 }
 
 // parseMetar parses a METAR string and extracts visibility and cloud layers

@@ -2,18 +2,18 @@ package main
 
 import (
 	"atc_freq/internal/app"
-	"atc_freq/internal/sim"
 	wailsAssets "atc_freq/wails"
 	"fmt"
 	"os"
 
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
 func main() {
-	connection, err := sim.NewConnection()
+	connection, err := simconnect.NewConnection()
 	if err != nil {
 		fmt.Printf("Can't create application: %v\n", err)
 		os.Exit(1)

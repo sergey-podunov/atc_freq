@@ -4,16 +4,16 @@ package main
 
 import (
 	"atc_freq/internal/app"
-	"atc_freq/internal/sim"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
-	connection, err := sim.NewConnection()
+	connection, err := simconnect.NewConnection()
 	if err != nil {
 		fmt.Printf("Can't create application: %v\n", err)
 		os.Exit(1)
@@ -38,6 +38,13 @@ func main() {
 				ArgsUsage:   "<waypoint1,waypoint2,...>",
 				Action:      weather(coreApp),
 				Description: "Retrieves weather information for a comma-separated list of waypoints.\n\n   Example:\n      atc_freq weather EDDB,UUMI,KJFK",
+			},
+			{
+				Name:        "clouds",
+				Usage:       "Get cloud density around an airport",
+				ArgsUsage:   "<ICAO>",
+				Action:      clouds(coreApp),
+				Description: "Retrieves cloud density information around the specified airport.\n\n   Example:\n      atc_freq clouds EDDB",
 			},
 		},
 	}
@@ -112,6 +119,32 @@ func weatherCommand(ctx *cli.Context, coreApp *app.App) error {
 		}
 		fmt.Printf("    Raw: %s\n", weather.RawMetar)
 	}
+
+	return nil
+}
+
+func clouds(coreApp *app.App) cli.ActionFunc {
+	return func(cliContext *cli.Context) error {
+		return cloudsCommand(cliContext, coreApp)
+	}
+}
+
+func cloudsCommand(ctx *cli.Context, coreApp *app.App) error {
+	if ctx.NArg() != 1 {
+		return fmt.Errorf("requires exactly one ICAO code argument")
+	}
+
+	icao := ctx.Args().Get(0)
+
+	waypoints := []string{icao}
+
+	cloudDensity, err := coreApp.GetClouds(waypoints)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Cloud density for %s:\n", strings.ToUpper(icao))
+	fmt.Printf("  Density: %s\n", cloudDensity)
 
 	return nil
 }

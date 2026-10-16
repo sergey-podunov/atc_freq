@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -15,7 +16,7 @@ func TestClient_GetAirportFrequencies(t *testing.T) {
 		name          string
 		icao          string
 		timeout       time.Duration
-		mockSetup     func(*sim.MockConnection)
+		mockSetup     func(*simconnect.MockConnection)
 		expectedFreqs []sim.AirportFrequency
 		expectedError string
 	}{
@@ -23,7 +24,7 @@ func TestClient_GetAirportFrequencies(t *testing.T) {
 			name:    "successful retrieval of frequencies",
 			icao:    "KJFK",
 			timeout: 5000 * time.Second,
-			mockSetup: func(m *sim.MockConnection) {
+			mockSetup: func(m *simconnect.MockConnection) {
 				// Expect Open call
 				m.On("Open", "go-freq-client").Return(nil).Once()
 
@@ -65,7 +66,7 @@ func TestClient_GetAirportFrequencies(t *testing.T) {
 			name:    "empty icao",
 			icao:    "",
 			timeout: 5 * time.Second,
-			mockSetup: func(m *sim.MockConnection) {
+			mockSetup: func(m *simconnect.MockConnection) {
 				// No expectations - should fail before any calls
 			},
 			expectedFreqs: nil,
@@ -75,7 +76,7 @@ func TestClient_GetAirportFrequencies(t *testing.T) {
 			name:    "timeout waiting for data",
 			icao:    "KLAX",
 			timeout: 100 * time.Millisecond,
-			mockSetup: func(m *sim.MockConnection) {
+			mockSetup: func(m *simconnect.MockConnection) {
 				m.On("Open", "go-freq-client").Return(nil).Once()
 				m.On("AddField", mock.Anything, mock.Anything).Return(nil).Times(7)
 				m.On("RequestFacilityData", "KLAX", "", uint32(sim.DEFINE_ID), uint32(sim.REQUEST_ID)).Return(nil).Once()
@@ -92,7 +93,7 @@ func TestClient_GetAirportFrequencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockConn := new(sim.MockConnection)
+			mockConn := new(simconnect.MockConnection)
 			tt.mockSetup(mockConn)
 
 			client := sim.NewClient(mockConn)

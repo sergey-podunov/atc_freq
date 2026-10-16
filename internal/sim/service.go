@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/sergey-podunov/msfs_connect/simconnect"
 )
 
 const clientTimeout = 10 * time.Second
@@ -63,14 +65,43 @@ func (s *Service) GetCloudDensity(waypoints []string) (map[string][]CloudDensity
 	}
 
 	// Get coordinates for all waypoints
+	fmt.Printf("Getting coordinates for %d waypoints...\n", len(cleanedWaypoints))
 	coords, err := s.client.GetWaypointCoordinates(cleanedWaypoints, clientTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get waypoint coordinates: %w", err)
 	}
+	fmt.Printf("Coordinates retrieved: %+v\n", coords)
+
+	fmt.Println("Getting ambient cloud state...")
+	inCloud, err := s.client.GetAmbientInCloud(clientTimeout * 100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ambient in cloud: %w", err)
+	}
 
 	// Get cloud density for each waypoint at all altitude layers (0-10000 feet, 500 feet step)
 	result := make(map[string][]CloudDensity)
-	for wp, coord := range coords {
+	var cloudDensity CloudDensity
+	if inCloud {
+		cloudDensity = CloudDensity{
+			Coverage:   "OVERCAST",
+			Value:      255,
+			MinAlt:     3000,
+			MaxAlt:     3500,
+			Percentage: 100,
+		}
+	} else {
+		cloudDensity = CloudDensity{
+			Coverage:   "CLR",
+			Value:      0,
+			MinAlt:     3000,
+			MaxAlt:     3500,
+			Percentage: 0,
+		}
+	}
+
+	result[cleanedWaypoints[0]] = append(result[cleanedWaypoints[0]], cloudDensity)
+
+	/*	for wp, coord := range coords {
 		var layers []CloudDensity
 		for minAlt := 0; minAlt < maxAltitude; minAlt += altStep {
 			maxAlt := minAlt + altStep
@@ -83,7 +114,91 @@ func (s *Service) GetCloudDensity(waypoints []string) (map[string][]CloudDensity
 			layers = append(layers, density)
 		}
 		result[wp] = layers
+	}*/
+
+	return result, nil
+}
+
+// GetCloudDensityAtCoords retrieves cloud density at coords
+func (s *Service) GetCloudDensityAtCoords(waypoints []string) (map[string][]CloudDensity, error) {
+	if len(waypoints) == 0 {
+		return nil, fmt.Errorf("no waypoints provided")
 	}
+
+	cleanedWaypoints := cleanWaypoints(waypoints)
+	if len(cleanedWaypoints) == 0 {
+		return nil, fmt.Errorf("no valid waypoints provided")
+	}
+
+	// Get coordinates for all waypoints
+	fmt.Printf("Getting coordinates for %d waypoints...\n", len(cleanedWaypoints))
+	coords, err := s.client.GetWaypointCoordinates(cleanedWaypoints, clientTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get waypoint coordinates: %w", err)
+	}
+	fmt.Printf("Coordinates retrieved: %+v\n", coords)
+
+	//coord := coords[cleanedWaypoints[0]]
+
+	coord := Coordinates{
+		// gate c 16 parking
+		//initial 52.362500, 13.517833
+		//10 meters west 52.362500, 13.517686
+		//Lat: 52.362500,
+		//Lon: 13.517686,
+		Lat: 52.362500,
+		Lon: 13.517833,
+	}
+
+	initposition := simconnect.SIMCONNECT_DATA_INITPOSITION{
+		Latitude:  coord.Lat,
+		Longitude: coord.Lon,
+		Altitude:  3100,
+		Pitch:     0,
+		Bank:      0,
+		Heading:   210,
+		OnGround:  0,
+		Airspeed:  100,
+	}
+
+	fmt.Println("Creating AI object...")
+	simObjectId, err := s.client.CreateAIObject("Cessna 152 Asobo", initposition, clientTimeout*100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AI object: %w", err)
+	}
+	fmt.Printf("AI object created with ID %d\n", simObjectId)
+
+	time.Sleep(5 * time.Second)
+
+	fmt.Println("Getting ambient cloud state...")
+	windDirection, err := s.client.GetAmbientWindDirectionForObject(simObjectId, clientTimeout*100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ambient in cloud: %w", err)
+	}
+	fmt.Printf("Wind direction: %+v\n", windDirection)
+
+	// Get cloud density for each waypoint at all altitude layers (0-10000 feet, 500 feet step)
+	result := make(map[string][]CloudDensity)
+	var cloudDensity CloudDensity
+	/*if inCloud {
+		cloudDensity = CloudDensity{
+			Coverage:   "OVERCAST",
+			Value:      255,
+			MinAlt:     3000,
+			MaxAlt:     3500,
+			Percentage: 100,
+		}
+	} else {*/
+	cloudDensity = CloudDensity{
+		Coverage:   "CLR",
+		Value:      0,
+		MinAlt:     3000,
+		MaxAlt:     3500,
+		Percentage: 0,
+	}
+	//}
+
+	result[cleanedWaypoints[0]] = append(result[cleanedWaypoints[0]], cloudDensity)
 
 	return result, nil
 }
