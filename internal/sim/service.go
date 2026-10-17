@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sergey-podunov/msfs_connect/simconnect"
+	"github.com/sergey-podunov/msfs-connect/simconnect"
 )
 
 const clientTimeout = 10 * time.Second

@@ -6,7 +6,7 @@ import (
 	"atc_freq/internal/testutil"
 	"testing"
 
-	"github.com/sergey-podunov/msfs_connect/simconnect"
+	"github.com/sergey-podunov/msfs-connect/simconnect"
 	"github.com/stretchr/testify/assert"
 )
 

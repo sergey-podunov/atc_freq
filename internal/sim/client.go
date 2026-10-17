@@ -8,7 +8,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/sergey-podunov/msfs_connect/simconnect"
+	"github.com/sergey-podunov/msfs-connect/simconnect"
 )
 
 type FACILITY_FREQUENCY_DATA struct {

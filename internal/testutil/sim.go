@@ -4,7 +4,7 @@ import (
 	"atc_freq/internal/sim"
 	"unsafe"
 
-	"github.com/sergey-podunov/msfs_connect/simconnect"
+	"github.com/sergey-podunov/msfs-connect/simconnect"
 )
 
 // FacilityDataBuffer is a struct that holds both the header and inline data

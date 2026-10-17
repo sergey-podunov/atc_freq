@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sergey-podunov/msfs_connect/simconnect"
+	"github.com/sergey-podunov/msfs-connect/simconnect"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"

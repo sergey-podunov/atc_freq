@@ -48,14 +48,14 @@ Service (internal/sim)     - Business logic, timeout handling, input validation
     ↓
 Client (internal/sim)      - SimConnect protocol implementation, data parsing
     ↓
-Connection (msfs_connect)  - SimConnect.dll wrapper, separate module
+simconnect.Connection      - DLL abstraction for SimConnect.dll (github.com/sergey-podunov/msfs-connect)
 ```
 
 ### Key Components
 
-- **Connection interface** (`simconnect.Connection` from `github.com/sergey-podunov/msfs_connect/simconnect`, lives in `../msfs_connect`): Abstraction over SimConnect DLL calls. Has two implementations:
-  - `DllConnection` - Real SimConnect.dll calls via windows syscalls
-  - `MockConnection` - For unit testing with testify/mock
+- **Connection interface** (`simconnect.Connection` from `github.com/sergey-podunov/msfs-connect/simconnect`): Abstraction over SimConnect DLL calls. Has two implementations:
+  - `simconnect.DllConnection` (created via `simconnect.NewConnection()`) - Real SimConnect.dll calls via windows syscalls
+  - `simconnect.MockConnection` - For unit testing with testify/mock
 
 - **Client** (`internal/sim/client.go`): Implements SimConnect protocols for:
   - Airport frequency retrieval via facility data requests
@@ -68,9 +68,7 @@ Connection (msfs_connect)  - SimConnect.dll wrapper, separate module
 
 ### SimConnect Integration
 
-- The SimConnect layer (`Connection`, `DllConnection`, `MockConnection`, generated `SIMCONNECT_*` types and consts, `ExceptionName`, `CString`/`TrimCString`) lives in the separate module `msfs_connect` (`../msfs_connect`)
-- Local development uses the Go workspace `../go.work`, which points at both `atc_freq` and `msfs_connect`
-- Struct definitions are generated in `msfs_connect` (`make generate` there) from SimConnect.h
+- SimConnect types (`simconnect.SIMCONNECT_*`), the DLL wrapper and the mock live in the `github.com/sergey-podunov/msfs-connect` module; this project has no cgo/generated code of its own
 - SimConnect.dll is loaded dynamically at runtime via `windows.LoadDLL`
 - DLL must be available in PATH or local directory (typically from MSFS SDK)
 
@@ -82,7 +80,7 @@ Connection (msfs_connect)  - SimConnect.dll wrapper, separate module
 
 ## Testing
 
-Tests use a mock connection (`MockConnection`) with testify/mock. Test helpers in `internal/testutil/` create SimConnect response structures for testing.
+Tests use a mock connection (`simconnect.MockConnection`) with testify/mock. Test helpers in `internal/testutil/` create SimConnect response structures for testing.
 
 ## Environment Requirements
 
@@ -108,6 +106,6 @@ This agent will:
 The agent reports success/failure for each step and suggests fixes for any issues.
 
 ## Misc
-Don't edit defs_generated.go directly. When some new consts from SimConnect.h are needed — add them to `msfs_connect/simconnect/defs.go` and run `make generate` in `msfs_connect`.
+When new SimConnect consts, types or calls are needed, add them to `msfs-connect` (see its CLAUDE.md), not to this project.
 
 Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.

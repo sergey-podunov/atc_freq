@@ -3,7 +3,7 @@ module atc_freq
 go 1.25.5
 
 require (
-	github.com/sergey-podunov/msfs_connect v0.1.0
+	github.com/sergey-podunov/msfs-connect v0.1.1
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/wailsapp/wails/v2 v2.11.0

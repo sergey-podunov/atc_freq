@@ -4,7 +4,7 @@ import (
 	"atc_freq/internal/sim"
 	"context"
 
-	"github.com/sergey-podunov/msfs_connect/simconnect"
+	"github.com/sergey-podunov/msfs-connect/simconnect"
 )
 
 type App struct {

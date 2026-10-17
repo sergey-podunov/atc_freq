@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sergey-podunov/msfs_connect/simconnect"
+	"github.com/sergey-podunov/msfs-connect/simconnect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

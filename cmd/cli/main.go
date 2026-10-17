@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sergey-podunov/msfs_connect/simconnect"
+	"github.com/sergey-podunov/msfs-connect/simconnect"
 	"github.com/urfave/cli/v2"
 )
 

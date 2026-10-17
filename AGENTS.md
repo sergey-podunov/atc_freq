@@ -48,12 +48,12 @@ Service (internal/sim)     - Business logic, timeout handling, input validation
     ↓
 Client (internal/sim)      - SimConnect protocol implementation, data parsing
     ↓
-Connection (msfs_connect)  - SimConnect.dll wrapper, separate module
+Connection (msfs-connect)  - SimConnect.dll wrapper, separate module
 ```
 
 ### Key Components
 
-- **Connection interface** (`simconnect.Connection` from `github.com/sergey-podunov/msfs_connect/simconnect`, lives in `../msfs_connect`): Abstraction over SimConnect DLL calls. Has two implementations:
+- **Connection interface** (`simconnect.Connection` from `github.com/sergey-podunov/msfs-connect/simconnect`, lives in `../msfs-connect`): Abstraction over SimConnect DLL calls. Has two implementations:
   - `DllConnection` - Real SimConnect.dll calls via windows syscalls
   - `MockConnection` - For unit testing with testify/mock
 
@@ -68,9 +68,9 @@ Connection (msfs_connect)  - SimConnect.dll wrapper, separate module
 
 ### SimConnect Integration
 
-- The SimConnect layer (`Connection`, `DllConnection`, `MockConnection`, generated `SIMCONNECT_*` types and consts, `ExceptionName`, `CString`/`TrimCString`) lives in the separate module `msfs_connect` (`../msfs_connect`)
-- Local development uses the Go workspace `../go.work`, which points at both `atc_freq` and `msfs_connect`
-- Struct definitions are generated in `msfs_connect` (`make generate` there) from SimConnect.h
+- The SimConnect layer (`Connection`, `DllConnection`, `MockConnection`, generated `SIMCONNECT_*` types and consts, `ExceptionName`, `CString`/`TrimCString`) lives in the separate module `msfs-connect` (`../msfs-connect`)
+- Local development uses the Go workspace `../go.work`, which points at both `atc_freq` and `msfs-connect`
+- Struct definitions are generated in `msfs-connect` (`make generate` there) from SimConnect.h
 - SimConnect.dll is loaded dynamically at runtime via `windows.LoadDLL`
 - DLL must be available in PATH or local directory (typically from MSFS SDK)
 
@@ -92,4 +92,4 @@ Tests use a mock connection (`MockConnection`) with testify/mock. Test helpers i
 - Wails CLI for GUI builds
 
 ## Misc
-Don't edit defs_generated.go directly. When some new consts from SimConnect.h are needed — add them to `msfs_connect/simconnect/defs.go` and run `make generate` in `msfs_connect`.
+Don't edit defs_generated.go directly. When some new consts from SimConnect.h are needed — add them to `msfs-connect/simconnect/defs.go` and run `make generate` in `msfs-connect`.
