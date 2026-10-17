@@ -70,7 +70,7 @@ simconnect.Connection      - DLL abstraction for SimConnect.dll (github.com/serg
 
 - SimConnect types (`simconnect.SIMCONNECT_*`), the DLL wrapper and the mock live in the `github.com/sergey-podunov/msfs-connect` module; this project has no cgo/generated code of its own
 - SimConnect.dll is loaded dynamically at runtime via `windows.LoadDLL`
-- DLL must be available in PATH or local directory (typically from MSFS SDK)
+- DLL must be available in PATH or local directory (from the MSFS SDK; not tracked in git, see README)
 
 ### Frontend
 

@@ -72,7 +72,7 @@ Connection (msfs-connect)  - SimConnect.dll wrapper, separate module
 - Local development uses the Go workspace `../go.work`, which points at both `atc_freq` and `msfs-connect`
 - Struct definitions are generated in `msfs-connect` (`make generate` there) from SimConnect.h
 - SimConnect.dll is loaded dynamically at runtime via `windows.LoadDLL`
-- DLL must be available in PATH or local directory (typically from MSFS SDK)
+- DLL must be available in PATH or local directory (from the MSFS SDK; not tracked in git, see README)
 
 ### Frontend
 

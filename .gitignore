@@ -18,6 +18,9 @@
 
 # Custom binaries (if you build them in the root)
 
+# SimConnect.dll comes from the MSFS SDK, see README
+SimConnect.dll
+
 # OS specific files
 Thumbs.db
 desktop.ini
