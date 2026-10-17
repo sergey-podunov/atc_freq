@@ -1,1 +1,9 @@
-* text=auto eol=crlf
+# Normalize text files to LF in both the repository and the working copy
+* text=auto eol=lf
+
+# Binary files
+*.dll binary
+*.exe binary
+*.png binary
+*.ico binary
+*.woff2 binary
